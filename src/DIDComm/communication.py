@@ -1,4 +1,6 @@
 import zmq
+import json
+import base64
 
 
 class Socket:
@@ -8,16 +10,15 @@ class Socket:
         self.bytes_sent = 0
         self.bytes_recv = 0
 
-    def send(self, msg: bytes):
-        if not isinstance(msg, bytes):
-            raise TypeError("msg deve essere di tipo 'bytes'")
-        self.socket.send(msg)
-        self.bytes_sent += len(msg)
+    def send(self, msg):
+        data = json.dumps(msg).encode("utf-8")
+        self.socket.send(data)
+        self.bytes_sent += len(data)
 
-    def recv(self) -> bytes:
+    def recv(self):
         data = self.socket.recv()
         self.bytes_recv += len(data)
-        return data
+        return json.loads(data.decode("utf-8"))
 
     def send_wait(self, msg: bytes) -> bytes:
         self.send(msg)
@@ -30,15 +31,26 @@ class Socket:
         return self.bytes_sent + self.bytes_recv
 
 
-class UserSocket(Socket):
+class VerifierSocket(Socket):
     def __init__(self, local_port: int):
         # zmq.REP order: .recv(), .send(), .recv(), ...
         super().__init__(zmq.REP)
         self.socket.bind(f"tcp://*:{local_port}")
 
 
-class VerifierSocket(Socket):
-    def __init__(self, server_ip: str, server_port: int):
+class UserSocket(Socket):
+    def __init__(self,  verifier_ip: str, verifier_port: int):
         # zmq.REQ order: .send(), .recv(), .send(), ...
         super().__init__(zmq.REQ)
-        self.socket.connect(f"tcp://{server_ip}:{server_port}")
+        self.socket.connect(f"tcp://{verifier_ip}:{verifier_port}")
+
+
+def from_bytes_to_B64(data: bytes) -> str:
+    if not isinstance(data, bytes):
+        raise TypeError("Data must be of type bytes")
+    return base64.b64encode(data).decode("utf-8")
+
+def from_B64_to_bytes(data: str) -> bytes:
+    if not isinstance(data, str):
+        raise TypeError("Data must be of type str")
+    return base64.b64decode(data)

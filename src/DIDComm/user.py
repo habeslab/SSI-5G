@@ -9,7 +9,16 @@ def user(did, privkey, ECDH_pubkey, sign_pubkey, issuer_sign_pubkey, issuer_ECDH
     k0, k2, k4 = params[2]
     th1, iv0, iv2, iv4 = params[3]
 
-    socket = open_socket(user=true, user_port=7000)
+    socket = open_socket(user=True, verifier_ip="127.0.0.1", verifier_port=7000)
+
+    socket.send({})
+    socket.recv()
+
+
+
+
+if __name__ == '__main__':
+    user(None, None, None, None, None, None)
 
 
 

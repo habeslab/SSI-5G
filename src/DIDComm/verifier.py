@@ -10,6 +10,15 @@ def verifier(did, privkey, ECDH_pubkey, sign_pubkey, issuer_sign_pubkey, issuer_
     k1, k3, k5 = params[2]
     th0, iv1, iv3, iv5, nc = params[3]
 
-    socket = open_socket(user=false, verifier_ip="localhost", verifier_port=7001)
+    socket = open_socket(user=False, verifier_port=7000)
+
+    while(True):
+        socket.recv()
+        socket.send({})
+
+
+if __name__ == '__main__':
+    verifier(None, None, None, None, None, None)
+
 
 
