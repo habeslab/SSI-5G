@@ -5,7 +5,7 @@ from utils import *
 import json
 
 
-def verifier(ECDH_privkey, sign_privkey, ECDH_user_pubkey, sign_user_pubkey, sign_issuer_pubkey):
+def verifier(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_user_pubkey, sign_user_pubkey, sign_issuer_pubkey):
     print("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=5)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
@@ -22,9 +22,11 @@ def verifier(ECDH_privkey, sign_privkey, ECDH_user_pubkey, sign_user_pubkey, sig
     socket.send({"th0": th0_B64})
     print("Sent th0 =", th0_B64, "(base64)")
 
-    m1 = socket.recv()
-    print("Received m1:")
-    print(m1)
+    m1_encrypted = socket.recv()
+    m1_plain = extract_msg(m1_encrypted, sign_pubkey, ECDH_privkey)
+    print("m1 received and decrypted successfully")
+
+
 
 
 
@@ -35,11 +37,12 @@ if __name__ == '__main__':
 
     ECDH_privkey = from_B64_to_x25519_privkey(verifier_input["ECDH_privkey"])
     sign_privkey = from_B64_to_ed25519_privkey(verifier_input["sign_privkey"])
+    sign_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_pubkey"])
     ECDH_user_pubkey = from_B64_to_x25519_pubkey(verifier_input["ECDH_user_pubkey"])
     sign_user_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_user_pubkey"])
     sign_issuer_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_issuer_pubkey"])
 
-    verifier(ECDH_privkey, sign_privkey, ECDH_user_pubkey, sign_user_pubkey, sign_issuer_pubkey)
+    verifier(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_user_pubkey, sign_user_pubkey, sign_issuer_pubkey)
 
 
 

@@ -28,9 +28,10 @@ def main():
     verifier_input = {
         "ECDH_privkey": from_bytes_to_B64(from_privkey_to_bytes(verifier_ECDH_privkey)),
         "sign_privkey": from_bytes_to_B64(from_privkey_to_bytes(verifier_sign_privkey)),
+        "sign_pubkey": from_pubkey_to_B64(verifier_sign_pubkey),
         "ECDH_user_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(user_ECDH_pubkey)),
         "sign_user_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(user_sign_pubkey)),
-        "issuer_sign_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(issuer_sign_pubkey)),
+        "sign_issuer_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(issuer_sign_pubkey)),
     }
 
     os.makedirs("./inputs", exist_ok=True)

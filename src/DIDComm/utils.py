@@ -57,6 +57,54 @@ def open_socket(user: bool, verifier_ip=None, verifier_port=None):
     return communication.VerifierSocket(verifier_port)
 
 
+def prepare_msg(k, epheremal_priv, ECDH_verifier_pubkey, ephemeral_pub, sign_verifier_pubkey, payload, iv):
+    k_wrapped = wrap_key(k, epheremal_priv.exchange(ECDH_verifier_pubkey))
+    ephemeral_pub_wrapped = wrap_key(from_pubkey_to_bytes(ephemeral_pub), from_pubkey_to_bytes(sign_verifier_pubkey))
+    m_encrypted = encrypt(from_json_to_bytes(payload), iv, k)
+
+    return {
+        "k_wrapped": k_wrapped,
+        "ephemeral_pub_wrapped": ephemeral_pub_wrapped,
+        "m_encrypted": m_encrypted,
+        "iv": from_bytes_to_B64(iv)
+    }
+
+
+
+
+def extract_msg(msg, sign_pubkey, ECDH_privkey):
+    k0_wrapped = msg["k_wrapped"]
+    ephemeral_pub_wrapped = msg["ephemeral_pub_wrapped"]
+    msg_encrypted = msg["m_encrypted"]
+    iv0 = msg["iv"]
+
+    # Unwrap ephemeral user public key
+    ephemeral_pub = from_bytes_to_x25519_pubkey(unwrap_key(
+        from_B64_to_bytes(ephemeral_pub_wrapped["nonce"]),
+        from_B64_to_bytes(ephemeral_pub_wrapped["ciphertext"]),
+        from_B64_to_bytes(ephemeral_pub_wrapped["tag"]),
+        from_pubkey_to_bytes(sign_pubkey)
+    ))
+
+    # Unwrap k0
+    k0 = unwrap_key(
+        from_B64_to_bytes(k0_wrapped["nonce"]),
+        from_B64_to_bytes(k0_wrapped["ciphertext"]),
+        from_B64_to_bytes(k0_wrapped["tag"]),
+        ECDH_privkey.exchange(ephemeral_pub)
+    )
+
+    # Get msh plaintext
+    msg = decrypt(
+        from_B64_to_bytes(msg_encrypted["ciphertext"]),
+        k0,
+        from_B64_to_bytes(iv0),
+        from_B64_to_bytes(msg_encrypted["tag"])
+    )
+
+    return msg
+
+
 def wrap_key(k, k_wrap):
     backend = default_backend()
 
@@ -79,11 +127,11 @@ def wrap_key(k, k_wrap):
     return {
         "nonce": from_bytes_to_B64(nonce),
         "ciphertext": from_bytes_to_B64(ciphertext),
-        "encryptor_tag": from_bytes_to_B64(encryptor.tag)
+        "tag": from_bytes_to_B64(encryptor.tag)
     }
 
 
-def unwrap_key(nonce, ciphertext, tag, k_wrap):
+def unwrap_key(nonce, ciphertext, tag, k_wrap: bytes):
     backend = default_backend()
 
     # Get the derived key

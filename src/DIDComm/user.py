@@ -4,6 +4,9 @@ from utils import *
 import json
 
 
+
+
+
 # sign_privkey deve essere generata così:
 # sk = Ed25519PrivateKey.generate()
 # pk = sk.public_key()
@@ -32,20 +35,8 @@ def user(ECDH_privkey, sign_privkey, ECDH_verifier_pubkey, sign_verifier_pubkey)
         "DIDDoc_signature": from_bytes_to_B64(DIDDoc_signature)
     }
 
-    k0_wrapped = wrap_key(k0, ephemeral_priv.exchange(ECDH_verifier_pubkey))
-    ephemeral_pub_wrapped = wrap_key(from_pubkey_to_bytes(ephemeral_pub), from_pubkey_to_bytes(sign_verifier_pubkey))
-    print("k0 and epheremal_pub successfully wrapped")
-    m1_ciphertext = encrypt(from_json_to_bytes(m1), iv0, k0)
-
-    socket.send({
-        "k0_wrapped": k0_wrapped,
-        "ephemeral_pub_wrapped": ephemeral_pub_wrapped,
-        "m1_ciphertext": m1_ciphertext,
-        "iv0": from_bytes_to_B64(iv0)
-    })
+    socket.send(prepare_msg(k0, ephemeral_priv, ECDH_verifier_pubkey, ephemeral_pub, sign_verifier_pubkey,m1, iv0))
     print("Sent m1")
-
-
 
 
 
