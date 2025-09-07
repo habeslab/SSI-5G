@@ -21,6 +21,7 @@ def main():
     user_input = {
         "ECDH_privkey": from_bytes_to_B64(from_privkey_to_bytes(user_ECDH_privkey)),
         "sign_privkey": from_bytes_to_B64(from_privkey_to_bytes(user_sign_privkey)),
+        "sign_pubkey": from_pubkey_to_B64(user_sign_pubkey),
         "ECDH_verifier_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(verifier_ECDH_pubkey)),
         "sign_verifier_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(verifier_sign_pubkey)),
     }

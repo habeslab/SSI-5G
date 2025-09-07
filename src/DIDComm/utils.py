@@ -57,9 +57,9 @@ def open_socket(user: bool, verifier_ip=None, verifier_port=None):
     return communication.VerifierSocket(verifier_port)
 
 
-def prepare_msg(k, epheremal_priv, ECDH_verifier_pubkey, ephemeral_pub, sign_verifier_pubkey, payload, iv):
-    k_wrapped = wrap_key(k, epheremal_priv.exchange(ECDH_verifier_pubkey))
-    ephemeral_pub_wrapped = wrap_key(from_pubkey_to_bytes(ephemeral_pub), from_pubkey_to_bytes(sign_verifier_pubkey))
+def prepare_msg(k, epheremal_priv, ECDH_counterpart_pubkey, ephemeral_pub, sign_counterpart_pubkey, payload, iv):
+    k_wrapped = wrap_key(k, epheremal_priv.exchange(ECDH_counterpart_pubkey))
+    ephemeral_pub_wrapped = wrap_key(from_pubkey_to_bytes(ephemeral_pub), from_pubkey_to_bytes(sign_counterpart_pubkey))
     m_encrypted = encrypt(from_json_to_bytes(payload), iv, k)
 
     return {
@@ -73,10 +73,10 @@ def prepare_msg(k, epheremal_priv, ECDH_verifier_pubkey, ephemeral_pub, sign_ver
 
 
 def extract_msg(msg, sign_pubkey, ECDH_privkey):
-    k0_wrapped = msg["k_wrapped"]
+    k_wrapped = msg["k_wrapped"]
     ephemeral_pub_wrapped = msg["ephemeral_pub_wrapped"]
     msg_encrypted = msg["m_encrypted"]
-    iv0 = msg["iv"]
+    iv = msg["iv"]
 
     # Unwrap ephemeral user public key
     ephemeral_pub = from_bytes_to_x25519_pubkey(unwrap_key(
@@ -86,23 +86,23 @@ def extract_msg(msg, sign_pubkey, ECDH_privkey):
         from_pubkey_to_bytes(sign_pubkey)
     ))
 
-    # Unwrap k0
-    k0 = unwrap_key(
-        from_B64_to_bytes(k0_wrapped["nonce"]),
-        from_B64_to_bytes(k0_wrapped["ciphertext"]),
-        from_B64_to_bytes(k0_wrapped["tag"]),
+    # Unwrap k
+    k = unwrap_key(
+        from_B64_to_bytes(k_wrapped["nonce"]),
+        from_B64_to_bytes(k_wrapped["ciphertext"]),
+        from_B64_to_bytes(k_wrapped["tag"]),
         ECDH_privkey.exchange(ephemeral_pub)
     )
 
-    # Get msh plaintext
+    # Get msg plaintext
     msg = decrypt(
         from_B64_to_bytes(msg_encrypted["ciphertext"]),
-        k0,
-        from_B64_to_bytes(iv0),
+        k,
+        from_B64_to_bytes(iv),
         from_B64_to_bytes(msg_encrypted["tag"])
     )
 
-    return msg
+    return from_bytes_to_json(msg)
 
 
 def wrap_key(k, k_wrap):
@@ -153,8 +153,11 @@ def unwrap_key(nonce, ciphertext, tag, k_wrap: bytes):
 
 
 def sign(msg, privkey):
-    signature = privkey.sign(msg)
-    return signature
+    return privkey.sign(msg)
+
+
+def verify_signature(sig, msg, pubkey):
+    return pubkey.verify(sig, msg)
 
 
 # Encrypt by AES-GCM
@@ -243,6 +246,11 @@ def from_B64_to_ed25519_pubkey(data):
 def from_json_to_bytes(data):
     data_str = json.dumps(data)
     return data_str.encode("utf-8")
+
+
+def from_bytes_to_json(data):
+    data_str = data.decode("utf-8")
+    return json.loads(data_str)
 
 
 def from_pubkey_to_B64(key):

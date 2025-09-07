@@ -5,7 +5,7 @@ from utils import *
 import json
 
 
-def verifier(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_user_pubkey, sign_user_pubkey, sign_issuer_pubkey):
+def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_issuer_pubkey):
     print("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=5)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
@@ -26,6 +26,29 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_user_pubkey, sign_use
     m1_plain = extract_msg(m1_encrypted, sign_pubkey, ECDH_privkey)
     print("m1 received and decrypted successfully")
 
+    th0_res = m1_plain["th0"]
+    th1 = m1_plain["th1"]
+    ECDH_user_pubkey = m1_plain["DIDDoc"]
+    ECDH_user_pubkey_signature = m1_plain["DIDDoc_signature"]
+
+    assert th0_res == from_bytes_to_B64(th0), "Nonce not valid. Protocol aborted"
+    assert verify_signature(from_B64_to_bytes(ECDH_user_pubkey_signature), from_B64_to_bytes(ECDH_user_pubkey), sign_user_pubkey) is None,\
+        "Signature not valid. Protocol aborted"
+    print("Nonce and signature successfully verified")
+
+    DIDDoc_signature = sign(from_pubkey_to_bytes(ephemeral_pub), sign_privkey)
+
+    m2 = {
+        "th1": th1,
+        "DIDDoc": from_pubkey_to_B64(ephemeral_pub),
+        "DIDDoc_signature": from_bytes_to_B64(DIDDoc_signature)
+    }
+
+    m2_encrypted = prepare_msg(k1, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey, m2, iv1)
+    socket.send(m2_encrypted)
+    print("Sent m2")
+
+
 
 
 
@@ -42,7 +65,7 @@ if __name__ == '__main__':
     sign_user_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_user_pubkey"])
     sign_issuer_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_issuer_pubkey"])
 
-    verifier(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_user_pubkey, sign_user_pubkey, sign_issuer_pubkey)
+    verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_issuer_pubkey)
 
 
 
