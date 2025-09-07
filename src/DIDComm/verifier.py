@@ -44,9 +44,28 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
         "DIDDoc_signature": from_bytes_to_B64(DIDDoc_signature)
     }
 
-    m2_encrypted = prepare_msg(k1, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey, m2, iv1)
-    socket.send(m2_encrypted)
+    socket.send(
+        prepare_msg(k1, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey,
+                    m2, iv1))
     print("Sent m2")
+
+    m3_encrypted = socket.recv()
+    m3_plain = extract_msg(m3_encrypted, sign_pubkey, ephemeral_priv)
+    print("m3 received and decrypted successfully")
+
+    assert is_rule(m3_plain), "m3 has wrong format: protocol aborted"
+
+    m4 = {
+        "attr": [],
+        "uri": "URI",
+        "nc": from_bytes_to_B64(nc)
+    }
+
+    socket.send(
+        prepare_msg(k3, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey,
+                    m4, iv3))
+    print("Sent m4")
+
 
 
 

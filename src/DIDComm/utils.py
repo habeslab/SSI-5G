@@ -255,3 +255,10 @@ def from_bytes_to_json(data):
 
 def from_pubkey_to_B64(key):
     return from_bytes_to_B64(from_pubkey_to_bytes(key))
+
+
+def is_rule(msg):
+    if (msg.get("did_issuer") is None or msg.get("did_verifier") is None or msg.get("did_user") is None
+            or msg.get("uri") is None):
+        return False
+    return True
