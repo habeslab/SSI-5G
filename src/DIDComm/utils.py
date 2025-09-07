@@ -6,6 +6,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import os
+import json
 import communication
 import base64
 
@@ -17,7 +18,6 @@ def generate_params(n_x25519_keys=0, n_ed25519_keys=0, n_symm_keys=0, n_nonces=0
 
     for _ in range(n_x25519_keys):
         # Generate private and public X25519 keys
-        print("Generating private and public X25519 keys...")
         x25519_priv = x25519.X25519PrivateKey.generate()
         x25519_pub = x25519_priv.public_key()
         x25519_privkeys.append(x25519_priv)
@@ -30,11 +30,9 @@ def generate_params(n_x25519_keys=0, n_ed25519_keys=0, n_symm_keys=0, n_nonces=0
         ed25519_pubkeys.append(ed25519_pub)
 
     # Generate symmetric keys
-    print("Generating symmetric keys...")
     symm_keys = [AESGCM.generate_key(bit_length=256) for i in range(n_symm_keys)]
 
     # Generate nonces
-    print("Generating nonces...")
     nonces = [os.urandom(12) for i in range(n_nonces)]
 
     return {
@@ -78,7 +76,11 @@ def wrap_key(k, k_wrap):
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(k) + encryptor.finalize()
 
-    return nonce, ciphertext, encryptor.tag
+    return {
+        "nonce": from_bytes_to_B64(nonce),
+        "ciphertext": from_bytes_to_B64(ciphertext),
+        "encryptor_tag": from_bytes_to_B64(encryptor.tag)
+    }
 
 
 def unwrap_key(nonce, ciphertext, tag, k_wrap):
@@ -116,7 +118,10 @@ def encrypt(plaintext, iv, key):
     ciphertext = encryptor.update(plaintext) + encryptor.finalize()
     tag = encryptor.tag
 
-    return ciphertext, tag
+    return {
+        "ciphertext": from_bytes_to_B64(ciphertext),
+        "tag": from_bytes_to_B64(tag)
+    }
 
 
 # Decrypt by AES-GCM
@@ -155,3 +160,42 @@ def from_pubkey_to_bytes(key):
     )
 
 
+def from_bytes_to_x25519_privkey(key_bytes):
+    return x25519.X25519PrivateKey.from_private_bytes(key_bytes)
+
+
+def from_bytes_to_x25519_pubkey(key_bytes):
+    return x25519.X25519PublicKey.from_public_bytes(key_bytes)
+
+
+def from_bytes_to_ed25519_privkey(key_bytes):
+    return ed25519.Ed25519PrivateKey.from_private_bytes(key_bytes)
+
+
+def from_bytes_to_ed25519_pubkey(key_bytes):
+    return ed25519.Ed25519PublicKey.from_public_bytes(key_bytes)
+
+
+def from_B64_to_x25519_privkey(data):
+    return from_bytes_to_x25519_privkey(from_B64_to_bytes(data))
+
+
+def from_B64_to_ed25519_privkey(data):
+    return from_bytes_to_ed25519_privkey(from_B64_to_bytes(data))
+
+
+def from_B64_to_x25519_pubkey(data):
+    return from_bytes_to_x25519_pubkey(from_B64_to_bytes(data))
+
+
+def from_B64_to_ed25519_pubkey(data):
+    return from_bytes_to_ed25519_pubkey(from_B64_to_bytes(data))
+
+
+def from_json_to_bytes(data):
+    data_str = json.dumps(data)
+    return data_str.encode("utf-8")
+
+
+def from_pubkey_to_B64(key):
+    return from_bytes_to_B64(from_pubkey_to_bytes(key))
