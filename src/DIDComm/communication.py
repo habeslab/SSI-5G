@@ -1,6 +1,5 @@
 import zmq
 import json
-import base64
 
 
 class Socket:
@@ -45,12 +44,4 @@ class UserSocket(Socket):
         self.socket.connect(f"tcp://{verifier_ip}:{verifier_port}")
 
 
-def from_bytes_to_B64(data: bytes) -> str:
-    if not isinstance(data, bytes):
-        raise TypeError("Data must be of type bytes")
-    return base64.b64encode(data).decode("utf-8")
 
-def from_B64_to_bytes(data: str) -> bytes:
-    if not isinstance(data, str):
-        raise TypeError("Data must be of type str")
-    return base64.b64decode(data)

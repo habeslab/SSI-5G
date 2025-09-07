@@ -10,3 +10,6 @@ __pycache__/
 # IDE configurations
 .vscode/
 .idea/
+
+# JSON inputs
+src/DIDComm/inputs
