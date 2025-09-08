@@ -45,6 +45,20 @@ def main():
     with open("./inputs/verifier_input.json", "w", encoding="utf-8") as file:
         json.dump(verifier_input, file, ensure_ascii=False, indent=4)
 
+    attr = {
+        "name": "francesco",
+        "age": 23,
+    }
+    issuer_sig = sign(from_json_to_bytes(attr), issuer_sign_privkey)
+    verifiable_cred = {
+        "attr": attr,
+        "issuer_sig": from_bytes_to_B64(issuer_sig)
+    }
+
+    print("Verifiable credentials saved in ./inputs/verifiable_cred.json")
+    with open("./inputs/verifiable_cred.json", "w", encoding="utf-8") as file:
+        json.dump(verifiable_cred, file, ensure_ascii=False, indent=4)
+
 
 if __name__ == '__main__':
     main()

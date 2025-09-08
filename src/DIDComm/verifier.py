@@ -56,7 +56,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
     assert is_rule(m3_plain), "m3 has wrong format: protocol aborted"
 
     m4 = {
-        "attr": [],
+        "attr": ["name", "age"],
         "uri": "URI",
         "nc": from_bytes_to_B64(nc)
     }
@@ -65,6 +65,39 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
         prepare_msg(k3, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey,
                     m4, iv3))
     print("Sent m4")
+
+    m5_encrypted = socket.recv()
+    m5_plain = extract_msg(m5_encrypted, sign_pubkey, ephemeral_priv)
+    print("m5 received and decrypted successfully")
+
+    verifiable_pres = m5_plain["verifiable_pres"]
+    verifiable_pres_signature = m5_plain["verifiable_pres_signature"]
+    assert verify_signature(from_B64_to_bytes(verifiable_pres_signature), from_json_to_bytes(verifiable_pres),
+                            sign_user_pubkey) is None, "Signature not valid. Protocol aborted"
+
+    attr_res = verifiable_pres["verifiable_cred"]["attr"]
+    issuer_sig = verifiable_pres["verifiable_cred"]["issuer_sig"]
+
+    assert verify_signature(from_B64_to_bytes(issuer_sig), from_json_to_bytes(attr_res),
+                            sign_issuer_pubkey) is None, "Signature not valid. Protocol aborted"
+
+    nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["nc"])
+    assert nc_res == nc_res, "Nonce not valid. Protocol aborted"
+    assert set(attr_res.keys()) == set(m4["attr"]), "Attributes not valid. Protocol aborted"
+
+    m6 = {
+        "resource": "RESOURCE"
+    }
+
+    socket.send(
+        prepare_msg(k5, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey,
+                    m6, k5))
+    print("Sent m6")
+
+
+
+
+
 
 
 

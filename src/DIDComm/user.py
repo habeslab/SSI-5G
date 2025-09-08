@@ -5,7 +5,7 @@ import json
 
 
 
-def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey):
+def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey, verifiable_cred):
     print("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=4)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
@@ -36,7 +36,6 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
     m2_encrypted = socket.recv()
     m2_plain = extract_msg(m2_encrypted, sign_pubkey, ephemeral_priv)
     print("m2 received and decrypted successfully")
-    print(m2_plain)
 
     th1_res = m2_plain["th1"]
     ECDH_verifier_pubkey = m2_plain["DIDDoc"]
@@ -60,8 +59,35 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
 
     m4_encrypted = socket.recv()
     m4_plain = extract_msg(m4_encrypted, sign_pubkey, ephemeral_priv)
-    print("m2 received and decrypted successfully")
+    print("m4 received and decrypted successfully")
 
+    attr = m4_plain["attr"]
+    uri_res = m4_plain["uri"]
+    nc = m4_plain["nc"]
+
+    assert uri_res == m3["uri"], "URI not valid. Protocol aborted"
+
+    verifiable_pres = {
+        "nc": nc,
+        "m4": m4_plain,
+        "verifiable_cred": verifiable_cred,
+    }
+
+    verifiable_pres_signature = sign(from_json_to_bytes(verifiable_pres), sign_privkey)
+
+    m5 = {
+        "verifiable_pres": verifiable_pres,
+        "verifiable_pres_signature": from_bytes_to_B64(verifiable_pres_signature),
+    }
+
+    socket.send(prepare_msg(k4, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_verifier_pubkey), ephemeral_pub,
+                            sign_verifier_pubkey, m5, iv4))
+    print("Sent m5")
+
+    m6_encrypted = socket.recv()
+    m6_plain = extract_msg(m6_encrypted, sign_pubkey, ephemeral_priv)
+    print("m6 received and decrypted successfully")
+    print(m6_plain)
 
 
 if __name__ == '__main__':
@@ -74,7 +100,10 @@ if __name__ == '__main__':
     ECDH_verifier_pubkey = from_B64_to_x25519_pubkey(user_input["ECDH_verifier_pubkey"])
     sign_verifier_pubkey = from_B64_to_ed25519_pubkey(user_input["sign_verifier_pubkey"])
 
-    user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey)
+    with open("./inputs/verifiable_cred.json", "r", encoding="utf-8") as file:
+        verifiable_cred = json.load(file)
+
+    user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey, verifiable_cred)
 
 
 
