@@ -86,7 +86,7 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
 
     m6_encrypted = socket.recv()
     m6_plain = extract_msg(m6_encrypted, sign_pubkey, ephemeral_priv)
-    print("m6 received and decrypted successfully")
+    print("m6 (resource) received and decrypted successfully")
     print(m6_plain)
 
 

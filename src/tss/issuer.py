@@ -6,6 +6,7 @@ import json
 import requests
 from pathlib import Path
 import signal
+import jcs
 
 # ===============================
 # Configurazione
@@ -20,8 +21,8 @@ CMD_PATH = "./main.go"
 SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
 MESSAGE_DICT = {"name": "francesco", "age": 24}
-MESSAGE_JSON = json.dumps(MESSAGE_DICT)
-MESSAGE_B64 = base64.b64encode(MESSAGE_JSON.encode()).decode()
+MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)
+MESSAGE_B64 = base64.b64encode(jcs.canonicalize(MESSAGE_DICT)).decode("utf-8")
 print("message json:", MESSAGE_JSON)
 print("message b64:", MESSAGE_B64)
 

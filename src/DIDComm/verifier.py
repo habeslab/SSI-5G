@@ -3,6 +3,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
 import json
+import jcs
 
 
 def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_issuer_pubkey):
@@ -80,13 +81,8 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
 
     print("VC:")
     print(verifiable_pres["verifiable_cred"])
-    print(from_bytes_to_B64(from_json_to_bytes(attr_res)))
 
-    print("attr_res:", attr_res)
-    print("attr_res_b64", from_json_to_B64(attr_res))
-
-
-    assert verify_signature(from_B64_to_bytes(issuer_sig), from_json_to_bytes(attr_res),
+    assert verify_signature(from_B64_to_bytes(issuer_sig), from_bytes_to_B64(jcs.canonicalize(attr_res)).encode("UTF-8"),
                             sign_issuer_pubkey) is None, "VC signature not valid. Protocol aborted"
 
     nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["nc"])
