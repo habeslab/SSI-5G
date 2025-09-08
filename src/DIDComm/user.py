@@ -99,9 +99,7 @@ if __name__ == '__main__':
     sign_pubkey = from_B64_to_ed25519_pubkey(user_input["sign_pubkey"])
     ECDH_verifier_pubkey = from_B64_to_x25519_pubkey(user_input["ECDH_verifier_pubkey"])
     sign_verifier_pubkey = from_B64_to_ed25519_pubkey(user_input["sign_verifier_pubkey"])
-
-    with open("./inputs/verifiable_cred.json", "r", encoding="utf-8") as file:
-        verifiable_cred = json.load(file)
+    verifiable_cred = user_input["verifiable_cred"]
 
     user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey, verifiable_cred)
 

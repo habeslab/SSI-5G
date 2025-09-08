@@ -11,5 +11,6 @@ __pycache__/
 .vscode/
 .idea/
 
-# JSON inputs
-src/DIDComm/inputs
+# JSON files and inputs
+src/DIDComm/inputs/
+*.json

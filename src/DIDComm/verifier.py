@@ -73,17 +73,25 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
     verifiable_pres = m5_plain["verifiable_pres"]
     verifiable_pres_signature = m5_plain["verifiable_pres_signature"]
     assert verify_signature(from_B64_to_bytes(verifiable_pres_signature), from_json_to_bytes(verifiable_pres),
-                            sign_user_pubkey) is None, "Signature not valid. Protocol aborted"
+                            sign_user_pubkey) is None, "VP signature not valid. Protocol aborted"
 
     attr_res = verifiable_pres["verifiable_cred"]["attr"]
     issuer_sig = verifiable_pres["verifiable_cred"]["issuer_sig"]
 
+    print("VC:")
+    print(verifiable_pres["verifiable_cred"])
+    print(from_bytes_to_B64(from_json_to_bytes(attr_res)))
+
+    print("attr_res:", attr_res)
+    print("attr_res_b64", from_json_to_B64(attr_res))
+
+
     assert verify_signature(from_B64_to_bytes(issuer_sig), from_json_to_bytes(attr_res),
-                            sign_issuer_pubkey) is None, "Signature not valid. Protocol aborted"
+                            sign_issuer_pubkey) is None, "VC signature not valid. Protocol aborted"
 
     nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["nc"])
     assert nc_res == nc_res, "Nonce not valid. Protocol aborted"
-    assert set(attr_res.keys()) == set(m4["attr"]), "Attributes not valid. Protocol aborted"
+    assert set(attr_res.keys()) == set(m4["attr"]), "VC attributes not valid. Protocol aborted"
 
     m6 = {
         "resource": "RESOURCE"

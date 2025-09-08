@@ -257,6 +257,19 @@ def from_pubkey_to_B64(key):
     return from_bytes_to_B64(from_pubkey_to_bytes(key))
 
 
+def from_B64_to_json(data):
+    data_bytes = from_B64_to_bytes(data)
+    data_str = data_bytes.decode('utf-8')
+    return json.loads(data_str)
+
+
+def from_json_to_B64(data):
+    data_str = json.dumps(data)
+    data_bytes = data_str.encode('utf-8')
+    b64_bytes = base64.b64encode(data_bytes)
+    return b64_bytes.decode('utf-8')
+
+
 def is_rule(msg):
     if (msg.get("did_issuer") is None or msg.get("did_verifier") is None or msg.get("did_user") is None
             or msg.get("uri") is None):

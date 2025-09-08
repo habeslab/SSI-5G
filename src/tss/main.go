@@ -1,17 +1,18 @@
 package main
 
 import (
+    "encoding/base64"
     "encoding/json"
     "flag"
     "fmt"
     "log"
     "net/http"
+    "os"
     "strconv"
     "sync"
     "time"
 
     "github.com/gorilla/websocket"
-    "github.com/mr-tron/base58"
 
     "github.com/taurusgroup/frost-ed25519/pkg/frost"
     "github.com/taurusgroup/frost-ed25519/pkg/frost/keygen"
@@ -23,9 +24,8 @@ import (
     "crypto/ed25519"
 )
 
-var upgrader = websocket.Upgrader{ CheckOrigin: func(r *http.Request) bool { return true } }
+var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
-// Node rappresenta un processo nodo separato
 type Node struct {
     Id        party.ID
     N         int
@@ -66,9 +66,7 @@ func (nd *Node) waitForAllPeers() {
     }
 }
 
-
 func (nd *Node) Start() {
-    // Admin + WebSocket server
     mux := http.NewServeMux()
     mux.HandleFunc("/ws", nd.wsHandler)
     mux.HandleFunc("/admin/start-sign", nd.adminStartSignHandler)
@@ -84,20 +82,15 @@ func (nd *Node) Start() {
         }
     }()
 
-    // small wait for server to bind
     time.Sleep(200 * time.Millisecond)
 
-    // connect to peers with id > my id (so each pair has only one dialing direction)
     for pid := int(nd.Id) + 1; pid <= nd.N; pid++ {
         go nd.dialPeer(party.ID(pid))
     }
 
     nd.waitForAllPeers()
-
-    // pump that sends messages outgoing (state -> network)
     go nd.sendPump()
 
-    // start key generation
     ids := make([]party.ID, nd.N)
     for i := 1; i <= nd.N; i++ {
         ids[i-1] = party.ID(i)
@@ -107,7 +100,6 @@ func (nd *Node) Start() {
     go nd.runKeyGen(set, nd.Threshold)
 }
 
-// wsHandler: upgrade and register incoming connection (peer passes its id via ?id=<ID>)
 func (nd *Node) wsHandler(w http.ResponseWriter, r *http.Request) {
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
@@ -250,9 +242,9 @@ func (nd *Node) runKeyGen(set party.IDSlice, threshold party.Size) {
     }
 
     nd.keygenOutput = keygenOutput
-    _, byteData, keyBase58 := printGroupKey(keygenOutput.Public.GroupKey)
+    _, byteData, keyBase64 := printGroupKey(keygenOutput.Public.GroupKey)
     log.Printf("[node %d] GroupKey serialized (raw): %x", nd.Id, byteData)
-    log.Printf("[node %d] GroupKey serialized (Base58): %s", nd.Id, keyBase58)
+    log.Printf("[node %d] GroupKey serialized (Base64): %s", nd.Id, keyBase64)
 }
 
 func (nd *Node) runSign(signers []party.ID, message []byte) {
@@ -283,10 +275,18 @@ func (nd *Node) runSign(signers []party.ID, message []byte) {
     }
 
     nd.signOutput = signOutput
-    log.Printf("[node %d] Signature generated: %x", nd.Id, []byte(printSignature(signOutput.Signature)))
+
+    // Firma Ed25519 standard
+    sigEd := signOutput.Signature.ToEd25519()
+    sigB64 := base64.StdEncoding.EncodeToString(sigEd)
+    log.Printf("[node %d] Signature generated (Ed25519, Base64): %s", nd.Id, sigB64)
+
+    if nd.Id == 1 {
+        _, _, groupKeyB64 := printGroupKey(nd.keygenOutput.Public.GroupKey)
+        writeIssuerOutput(groupKeyB64, message, sigB64)
+    }
 }
 
-// adminStartSignHandler: riceve JSON { "signers": [1,2,3], "message": "..." }
 func (nd *Node) adminStartSignHandler(w http.ResponseWriter, r *http.Request) {
     var req struct {
         Signers []int  `json:"signers"`
@@ -313,39 +313,56 @@ func (nd *Node) adminStartSignHandler(w http.ResponseWriter, r *http.Request) {
 
 func (nd *Node) statusHandler(w http.ResponseWriter, r *http.Request) {
     type statusT struct {
-        ID               int    `json:"id"`
-        KeygenDone       bool   `json:"keygen_done"`
-        GroupKeyBase58   string `json:"group_key_base58,omitempty"`
-        SignatureBase58  string `json:"signature_base58,omitempty"`
+        ID              int    `json:"id"`
+        KeygenDone      bool   `json:"keygen_done"`
+        GroupKeyBase64  string `json:"group_key_base64,omitempty"`
+        SignatureBase64 string `json:"signature_base64,omitempty"`
     }
     st := statusT{ID: int(nd.Id)}
     if nd.keygenOutput != nil {
-        _, _, b58 := printGroupKey(nd.keygenOutput.Public.GroupKey)
+        _, _, b64 := printGroupKey(nd.keygenOutput.Public.GroupKey)
         st.KeygenDone = true
-        st.GroupKeyBase58 = b58
+        st.GroupKeyBase64 = b64
     }
     if nd.signOutput != nil {
         s := nd.signOutput.Signature.ToEd25519()
-        st.SignatureBase58 = base58.Encode(s)
+        st.SignatureBase64 = base64.StdEncoding.EncodeToString(s)
     }
     w.Header().Set("Content-Type", "application/json")
     _ = json.NewEncoder(w).Encode(st)
 }
 
-// helpers to print group key / signature (copiate e adattate da verify.go)
 func printGroupKey(key *eddsa.PublicKey) (string, ed25519.PublicKey, string) {
     byteData := key.ToEd25519()
     hexString := fmt.Sprintf("%x", byteData)
-    keyBase58 := base58.Encode(byteData)
-    return hexString, byteData, keyBase58
+    keyBase64 := base64.StdEncoding.EncodeToString(byteData)
+    return hexString, byteData, keyBase64
 }
 
-func printSignature(signature *eddsa.Signature) string {
-    data, err := signature.MarshalBinary()
-    if err != nil {
-        return fmt.Sprintf("errore serializzazione: %v", err)
+// Genera issuer_output.json con messaggio leggibile e firma Ed25519 standard
+func writeIssuerOutput(groupKeyB64 string, message []byte, signatureB64 string) {
+    output := map[string]interface{}{
+        "sign_issuer_pubkey": groupKeyB64,
+        "verifiable_cred": map[string]interface{}{
+            "attr":       string(message), // messaggio leggibile
+            "issuer_sig": signatureB64,    // firma Ed25519 standard
+        },
     }
-    return fmt.Sprintf("%x", data)
+
+    file, err := os.Create("issuer_output.json")
+    if err != nil {
+        log.Printf("failed to create issuer_output.json: %v", err)
+        return
+    }
+    defer file.Close()
+
+    enc := json.NewEncoder(file)
+    enc.SetIndent("", "    ")
+    if err := enc.Encode(output); err != nil {
+        log.Printf("failed to write JSON: %v", err)
+    } else {
+        log.Println("issuer_output.json generated successfully")
+    }
 }
 
 func main() {
@@ -358,6 +375,5 @@ func main() {
     node := NewNode(*id, *n, *basePort, *threshold)
     node.Start()
 
-    // block forever
     select {}
 }

@@ -17,6 +17,11 @@ def main():
     verifier_sign_privkey, verifier_sign_pubkey = keys["ed25519_privkeys"][1], keys["ed25519_pubkeys"][1]
     issuer_sign_privkey, issuer_sign_pubkey = keys["ed25519_privkeys"][2], keys["ed25519_pubkeys"][2]
 
+    # Load issuer output from json
+    with open("../tss/issuer_output.json", "r", encoding="utf-8") as file:
+        issuer_output = json.load(file)
+
+    issuer_output["verifiable_cred"]["attr"] = from_B64_to_json(issuer_output["verifiable_cred"]["attr"])
 
     user_input = {
         "ECDH_privkey": from_bytes_to_B64(from_privkey_to_bytes(user_ECDH_privkey)),
@@ -24,6 +29,7 @@ def main():
         "sign_pubkey": from_pubkey_to_B64(user_sign_pubkey),
         "ECDH_verifier_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(verifier_ECDH_pubkey)),
         "sign_verifier_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(verifier_sign_pubkey)),
+        "verifiable_cred": issuer_output["verifiable_cred"]
     }
 
     verifier_input = {
@@ -32,7 +38,7 @@ def main():
         "sign_pubkey": from_pubkey_to_B64(verifier_sign_pubkey),
         "ECDH_user_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(user_ECDH_pubkey)),
         "sign_user_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(user_sign_pubkey)),
-        "sign_issuer_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(issuer_sign_pubkey)),
+        "sign_issuer_pubkey": issuer_output["sign_issuer_pubkey"],
     }
 
     os.makedirs("./inputs", exist_ok=True)
@@ -45,19 +51,6 @@ def main():
     with open("./inputs/verifier_input.json", "w", encoding="utf-8") as file:
         json.dump(verifier_input, file, ensure_ascii=False, indent=4)
 
-    attr = {
-        "name": "francesco",
-        "age": 23,
-    }
-    issuer_sig = sign(from_json_to_bytes(attr), issuer_sign_privkey)
-    verifiable_cred = {
-        "attr": attr,
-        "issuer_sig": from_bytes_to_B64(issuer_sig)
-    }
-
-    print("Verifiable credentials saved in ./inputs/verifiable_cred.json")
-    with open("./inputs/verifiable_cred.json", "w", encoding="utf-8") as file:
-        json.dump(verifiable_cred, file, ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
