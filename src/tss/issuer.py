@@ -6,6 +6,7 @@ import json
 import requests
 from pathlib import Path
 import signal
+import os
 import jcs
 
 # ===============================
@@ -23,15 +24,17 @@ SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 MESSAGE_DICT = {"name": "francesco", "age": 24}
 MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)
 MESSAGE_B64 = base64.b64encode(jcs.canonicalize(MESSAGE_DICT)).decode("utf-8")
-print("message json:", MESSAGE_JSON)
-print("message b64:", MESSAGE_B64)
+
 
 # ===============================
 # 1) Build
 # ===============================
-print("Building Go node binary...")
-subprocess.run(["go", "build", "-o", NODE_BINARY, CMD_PATH], check=True)
-print("Build completata.\n")
+if not os.path.exists(NODE_BINARY):
+    print("Building Go node binary...")
+    subprocess.run(["go", "build", "-o", NODE_BINARY, CMD_PATH], check=True)
+    print("Build completata.\n")
+else:
+    print(f"Il binario '{NODE_BINARY}' esiste già, build saltata.\n")
 
 # ===============================
 # 2) Launch nodes in background

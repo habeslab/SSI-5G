@@ -61,14 +61,10 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
     m4_plain = extract_msg(m4_encrypted, sign_pubkey, ephemeral_priv)
     print("m4 received and decrypted successfully")
 
-    attr = m4_plain["attr"]
     uri_res = m4_plain["uri"]
-    nc = m4_plain["nc"]
-
     assert uri_res == m3["uri"], "URI not valid. Protocol aborted"
 
     verifiable_pres = {
-        "nc": nc,
         "m4": m4_plain,
         "verifiable_cred": verifiable_cred,
     }

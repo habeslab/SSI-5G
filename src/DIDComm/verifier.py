@@ -54,8 +54,6 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
     m3_plain = extract_msg(m3_encrypted, sign_pubkey, ephemeral_priv)
     print("m3 received and decrypted successfully")
 
-    assert is_rule(m3_plain), "m3 has wrong format: protocol aborted"
-
     m4 = {
         "attr": ["name", "age"],
         "uri": "URI",
@@ -85,7 +83,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
     assert verify_signature(from_B64_to_bytes(issuer_sig), from_bytes_to_B64(jcs.canonicalize(attr_res)).encode("UTF-8"),
                             sign_issuer_pubkey) is None, "VC signature not valid. Protocol aborted"
 
-    nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["nc"])
+    nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["m4"]["nc"])
     assert nc_res == nc_res, "Nonce not valid. Protocol aborted"
     assert set(attr_res.keys()) == set(m4["attr"]), "VC attributes not valid. Protocol aborted"
 
@@ -96,7 +94,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
     socket.send(
         prepare_msg(k5, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey), ephemeral_pub, sign_user_pubkey,
                     m6, k5))
-    print("Sent m6")
+    print("Sent m6 (resource)")
 
 
 
