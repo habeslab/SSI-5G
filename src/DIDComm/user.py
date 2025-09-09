@@ -48,9 +48,6 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
     print("Nonce and signature successfully verified")
 
     m3 = {
-        "did_issuer": "DID_I",
-        "did_verifier": "DID_V",
-        "did_user": "DID_U",
         "uri": "URI"
     }
 

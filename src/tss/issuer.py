@@ -32,9 +32,9 @@ MESSAGE_B64 = base64.b64encode(jcs.canonicalize(MESSAGE_DICT)).decode("utf-8")
 if not os.path.exists(NODE_BINARY):
     print("Building Go node binary...")
     subprocess.run(["go", "build", "-o", NODE_BINARY, CMD_PATH], check=True)
-    print("Build completata.\n")
+    print("Build completed.\n")
 else:
-    print(f"Il binario '{NODE_BINARY}' esiste già, build saltata.\n")
+    print(f"Bianry '{NODE_BINARY}' already exists\n")
 
 # ===============================
 # 2) Launch nodes in background

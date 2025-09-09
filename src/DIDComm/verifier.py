@@ -56,7 +56,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
 
     m4 = {
         "attr": ["name", "age"],
-        "uri": "URI",
+        "uri": m3_plain["uri"],
         "nc": from_bytes_to_B64(nc)
     }
 
