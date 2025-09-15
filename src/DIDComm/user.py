@@ -2,18 +2,19 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
 import json
+import argparse
 
 
-
-def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey, verifiable_cred):
+def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
+         sign_verifier_pubkey, verifiable_cred, verifier_ip, verifier_port):
     print("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=4)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
     k0, k2, k4 = params["symm_keys"]
     th1, iv0, iv2, iv4 = params["nonces"]
 
-    print("Connecting to verifier...")
-    socket = open_socket(user=True, verifier_ip="127.0.0.1", verifier_port=7000)
+    print(f"Connecting to verifier at {verifier_ip}:{verifier_port}...")
+    socket = open_socket(user=True, verifier_ip=verifier_ip, verifier_port=verifier_port)
 
     socket.send({})
     recvd = socket.recv()
@@ -30,7 +31,8 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
         "DIDDoc_signature": from_bytes_to_B64(DIDDoc_signature)
     }
 
-    socket.send(prepare_msg(k0, ephemeral_priv, ECDH_verifier_pubkey, ephemeral_pub, sign_verifier_pubkey, m1, iv0))
+    socket.send(prepare_msg(k0, ephemeral_priv, ECDH_verifier_pubkey, ephemeral_pub,
+                            sign_verifier_pubkey, m1, iv0))
     print("Sent m1")
 
     m2_encrypted = socket.recv()
@@ -42,7 +44,8 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
     ECDH_verifier_pubkey_signature = m2_plain["DIDDoc_signature"]
 
     assert th1_res == from_bytes_to_B64(th1), "Nonce not valid. Protocol aborted"
-    assert verify_signature(from_B64_to_bytes(ECDH_verifier_pubkey_signature), from_B64_to_bytes(ECDH_verifier_pubkey),
+    assert verify_signature(from_B64_to_bytes(ECDH_verifier_pubkey_signature),
+                            from_B64_to_bytes(ECDH_verifier_pubkey),
                             sign_verifier_pubkey) is None, \
         "Signature not valid. Protocol aborted"
     print("Nonce and signature successfully verified")
@@ -51,7 +54,9 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
         "uri": "URI"
     }
 
-    socket.send(prepare_msg(k2, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_verifier_pubkey), ephemeral_pub, sign_verifier_pubkey, m3, iv2))
+    socket.send(prepare_msg(k2, ephemeral_priv,
+                            from_B64_to_x25519_pubkey(ECDH_verifier_pubkey),
+                            ephemeral_pub, sign_verifier_pubkey, m3, iv2))
     print("Sent m3")
 
     m4_encrypted = socket.recv()
@@ -73,8 +78,9 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
         "verifiable_pres_signature": from_bytes_to_B64(verifiable_pres_signature),
     }
 
-    socket.send(prepare_msg(k4, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_verifier_pubkey), ephemeral_pub,
-                            sign_verifier_pubkey, m5, iv4))
+    socket.send(prepare_msg(k4, ephemeral_priv,
+                            from_B64_to_x25519_pubkey(ECDH_verifier_pubkey),
+                            ephemeral_pub, sign_verifier_pubkey, m5, iv4))
     print("Sent m5")
 
     m6_encrypted = socket.recv()
@@ -84,6 +90,13 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_ver
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="User client for verifier connection")
+    parser.add_argument("--verifier_ip", type=str, required=True,
+                        help="IP address of the verifier")
+    parser.add_argument("--verifier_port", type=int, required=True,
+                        help="Port of the verifier")
+    args = parser.parse_args()
+
     with open("./inputs/user_input.json", "r", encoding="utf-8") as file:
         user_input = json.load(file)
 
@@ -94,9 +107,6 @@ if __name__ == '__main__':
     sign_verifier_pubkey = from_B64_to_ed25519_pubkey(user_input["sign_verifier_pubkey"])
     verifiable_cred = user_input["verifiable_cred"]
 
-    user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey, sign_verifier_pubkey, verifiable_cred)
-
-
-
-
-
+    user(ECDH_privkey, sign_privkey, sign_pubkey,
+         ECDH_verifier_pubkey, sign_verifier_pubkey,
+         verifiable_cred, args.verifier_ip, args.verifier_port)
