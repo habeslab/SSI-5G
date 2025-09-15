@@ -1,29 +1,36 @@
+import json
+import argparse
+import logging
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
-import json
-import argparse
 
+# Configurazione del logging
+logging.basicConfig(
+    filename='user.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
          sign_verifier_pubkey, verifiable_cred, verifier_ip, verifier_port):
-    print("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
+    logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=4)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
     k0, k2, k4 = params["symm_keys"]
     th1, iv0, iv2, iv4 = params["nonces"]
 
-    print(f"Connecting to verifier at {verifier_ip}:{verifier_port}...")
+    logging.info(f"Connecting to verifier at {verifier_ip}:{verifier_port}...")
     socket = open_socket(user=True, verifier_ip=verifier_ip, verifier_port=verifier_port)
 
     socket.send({})
     recvd = socket.recv()
-    print("Connected")
-    print("Received th0 =", recvd['th0'], "(base64)")
+    logging.info("Connected")
+    logging.info("Received th0 = %s (base64)", recvd['th0'])
     th0 = from_B64_to_bytes(recvd['th0'])
 
     DIDDoc_signature = sign(from_pubkey_to_bytes(ephemeral_pub), sign_privkey)
-    print('DIDDoc successfully signed')
+    logging.info('DIDDoc successfully signed')
     m1 = {
         "th0": from_bytes_to_B64(th0),
         "th1": from_bytes_to_B64(th1),
@@ -33,11 +40,11 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
 
     socket.send(prepare_msg(k0, ephemeral_priv, ECDH_verifier_pubkey, ephemeral_pub,
                             sign_verifier_pubkey, m1, iv0))
-    print("Sent m1")
+    logging.info("Sent m1")
 
     m2_encrypted = socket.recv()
     m2_plain = extract_msg(m2_encrypted, sign_pubkey, ephemeral_priv)
-    print("m2 received and decrypted successfully")
+    logging.info("m2 received and decrypted successfully")
 
     th1_res = m2_plain["th1"]
     ECDH_verifier_pubkey = m2_plain["DIDDoc"]
@@ -48,7 +55,7 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
                             from_B64_to_bytes(ECDH_verifier_pubkey),
                             sign_verifier_pubkey) is None, \
         "Signature not valid. Protocol aborted"
-    print("Nonce and signature successfully verified")
+    logging.info("Nonce and signature successfully verified")
 
     m3 = {
         "uri": "URI"
@@ -57,11 +64,11 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     socket.send(prepare_msg(k2, ephemeral_priv,
                             from_B64_to_x25519_pubkey(ECDH_verifier_pubkey),
                             ephemeral_pub, sign_verifier_pubkey, m3, iv2))
-    print("Sent m3")
+    logging.info("Sent m3")
 
     m4_encrypted = socket.recv()
     m4_plain = extract_msg(m4_encrypted, sign_pubkey, ephemeral_priv)
-    print("m4 received and decrypted successfully")
+    logging.info("m4 received and decrypted successfully")
 
     uri_res = m4_plain["uri"]
     assert uri_res == m3["uri"], "URI not valid. Protocol aborted"
@@ -81,12 +88,12 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     socket.send(prepare_msg(k4, ephemeral_priv,
                             from_B64_to_x25519_pubkey(ECDH_verifier_pubkey),
                             ephemeral_pub, sign_verifier_pubkey, m5, iv4))
-    print("Sent m5")
+    logging.info("Sent m5")
 
     m6_encrypted = socket.recv()
     m6_plain = extract_msg(m6_encrypted, sign_pubkey, ephemeral_priv)
-    print("m6 (resource) received and decrypted successfully")
-    print(m6_plain)
+    logging.info("m6 (resource) received and decrypted successfully")
+    logging.info("m6 content: %s", m6_plain)
 
 
 if __name__ == '__main__':
