@@ -8,9 +8,9 @@ from cryptography.hazmat.primitives import hashes
 from utils import *
 
 # Configurazione del logging
-os.makedirs("../logs", exist_ok=True)
+os.makedirs("./logs", exist_ok=True)
 logging.basicConfig(
-    filename='../logs/verifier.log',
+    filename='./logs/verifier.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )

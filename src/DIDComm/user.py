@@ -7,9 +7,9 @@ from utils import *
 import os
 
 # Configurazione del logging
-os.makedirs("../logs", exist_ok=True)
+os.makedirs("./logs", exist_ok=True)
 logging.basicConfig(
-    filename='../logs/user.log',
+    filename='./logs/user.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
