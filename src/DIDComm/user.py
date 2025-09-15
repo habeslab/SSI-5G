@@ -7,7 +7,7 @@ from utils import *
 
 # Configurazione del logging
 logging.basicConfig(
-    filename='user.log',
+    filename='/tmp/user.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
