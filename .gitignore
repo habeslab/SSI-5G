@@ -14,3 +14,6 @@ __pycache__/
 # JSON files and inputs
 src/DIDComm/inputs/
 *.json
+
+# Logs
+*.log
