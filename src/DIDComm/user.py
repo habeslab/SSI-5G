@@ -11,7 +11,8 @@ os.makedirs("./logs", exist_ok=True)
 logging.basicConfig(
     filename='./logs/user.log',
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filemode='w'
 )
 
 def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
@@ -94,8 +95,10 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
 
     m6_encrypted = socket.recv()
     m6_plain = extract_msg(m6_encrypted, sign_pubkey, ephemeral_priv)
-    logging.info("m6 (resource) received and decrypted successfully")
-    logging.info("m6 content: %s", m6_plain)
+    logging.info("m6 received and decrypted successfully")
+    logging.info("m6 (JWT token) content: %s", m6_plain)
+
+
 
 
 if __name__ == '__main__':
@@ -104,9 +107,11 @@ if __name__ == '__main__':
                         help="IP address of the verifier")
     parser.add_argument("--verifier_port", type=int, required=True,
                         help="Port of the verifier")
+    parser.add_argument("--input_folder", type=str, required=True,
+                        help="Path of the folder containing JSON input file")
     args = parser.parse_args()
 
-    with open("./inputs/user_input.json", "r", encoding="utf-8") as file:
+    with open(f"{args.input_folder}/user_input.json", "r", encoding="utf-8") as file:
         user_input = json.load(file)
 
     ECDH_privkey = from_B64_to_x25519_privkey(user_input["ECDH_privkey"])

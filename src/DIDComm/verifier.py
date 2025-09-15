@@ -1,6 +1,7 @@
 import json
 import jcs
 import argparse
+import datetime
 import logging
 from cryptography.hazmat.primitives.asymmetric import x25519, ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -12,7 +13,8 @@ os.makedirs("./logs", exist_ok=True)
 logging.basicConfig(
     filename='./logs/verifier.log',
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filemode='w'
 )
 
 def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
@@ -82,6 +84,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     logging.info("m5 received and decrypted successfully")
 
     verifiable_pres = m5_plain["verifiable_pres"]
+
     verifiable_pres_signature = m5_plain["verifiable_pres_signature"]
     assert verify_signature(from_B64_to_bytes(verifiable_pres_signature),
                             from_json_to_bytes(verifiable_pres),
@@ -100,23 +103,35 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     assert nc_res == nc_res, "Nonce not valid. Protocol aborted"
     assert set(attr_res.keys()) == set(m4["attr"]), "VC attributes not valid. Protocol aborted"
 
+    verifiable_pres_bytes = from_json_to_bytes(verifiable_pres)
+    verifiable_pres_bytes_hash = get_hash(verifiable_pres_bytes)
+    plmn_id = attr_res["plmnId"]
+
+    jwt_payload = {
+        "verifiable_pres_hash": from_bytes_to_B64(verifiable_pres_bytes_hash),
+        "plmnId": plmn_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    }
+
     m6 = {
-        "resource": "RESOURCE"
+        "jwt_token": emit_jwt_token(jwt_payload, k5)
     }
 
     socket.send(
         prepare_msg(k5, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey),
                     ephemeral_pub, sign_user_pubkey, m6, k5))
-    logging.info("Sent m6 (resource)")
+    logging.info("Sent m6 (JWT token)")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Verifier server for user connection")
     parser.add_argument("--verifier_port", type=int, required=True,
                         help="Port on which the verifier listens")
+    parser.add_argument("--input_folder", type=str, required=True,
+                        help="Path of the folder containing JSON input file")
     args = parser.parse_args()
 
-    with open("./inputs/verifier_input.json", "r", encoding="utf-8") as file:
+    with open(f"{args.input_folder}/verifier_input.json", "r", encoding="utf-8") as file:
         verifier_input = json.load(file)
 
     ECDH_privkey = from_B64_to_x25519_privkey(verifier_input["ECDH_privkey"])

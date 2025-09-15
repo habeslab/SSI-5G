@@ -9,6 +9,7 @@ import os
 import json
 import communication
 import base64
+import jwt
 
 
 
@@ -102,7 +103,13 @@ def extract_msg(msg, sign_pubkey, ECDH_privkey):
         from_B64_to_bytes(msg_encrypted["tag"])
     )
 
-    return from_bytes_to_json(msg)
+    msg_json = from_bytes_to_json(msg)
+
+    if "jwt_token" not in msg_json:
+        return msg_json
+
+    jwt_token = msg_json["jwt_token"]
+    return decode_jwt_token(jwt_token, k)
 
 
 def wrap_key(k, k_wrap):
@@ -268,3 +275,22 @@ def from_json_to_B64(data):
     data_bytes = data_str.encode('utf-8')
     b64_bytes = base64.b64encode(data_bytes)
     return b64_bytes.decode('utf-8')
+
+
+def get_hash(data: bytes):
+    digest = hashes.Hash(hashes.SHA256())
+    digest.update(data)
+    return digest.finalize()
+
+
+def emit_jwt_token(payload, key):
+    return jwt.encode(payload, key, algorithm="HS256")
+
+
+def decode_jwt_token(token, key):
+    try:
+        return jwt.decode(token, key, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        print("Token expired")
+    except jwt.InvalidTokenError:
+        print("Token not valid")
