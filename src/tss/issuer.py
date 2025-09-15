@@ -4,7 +4,6 @@ import time
 import base64
 import json
 import requests
-from pathlib import Path
 import signal
 import os
 import jcs
@@ -21,9 +20,14 @@ CMD_PATH = "./main.go"
 
 SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
-MESSAGE_DICT = {"name": "francesco", "age": 24}
+MESSAGE_DICT = {
+    "plmnId": "PLMN ID",
+    "siteId": "SITE ID",
+    "sliceId": "SLICE ID",
+    "expirationDate": "EXPIRATION DATE"
+}
 MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)
-MESSAGE_B64 = base64.b64encode(jcs.canonicalize(MESSAGE_DICT)).decode("utf-8")
+MESSAGE_B64 = base64.b64encode(MESSAGE_JSON).decode("utf-8")
 
 
 # ===============================
@@ -34,7 +38,7 @@ if not os.path.exists(NODE_BINARY):
     subprocess.run(["go", "build", "-o", NODE_BINARY, CMD_PATH], check=True)
     print("Build completed.\n")
 else:
-    print(f"Bianry '{NODE_BINARY}' already exists\n")
+    print(f"Binary '{NODE_BINARY}' already exists\n")
 
 # ===============================
 # 2) Launch nodes in background
@@ -55,9 +59,40 @@ for i in range(1, N + 1):
 time.sleep(2)
 
 # ===============================
+# Helper: wait for keygen
+# ===============================
+def wait_keygen(base, nodes, timeout=60):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        all_done = True
+        for node_id in nodes:
+            url = f"http://127.0.0.1:{base + node_id - 1}/status"
+            try:
+                r = requests.get(url, timeout=2)
+                st = r.json()
+                if not st.get("keygen_done", False):
+                    all_done = False
+                    break
+            except Exception:
+                all_done = False
+                break
+        if all_done:
+            return True
+        time.sleep(0.5)
+    return False
+
+print("\nWaiting for all signers to finish keygen...")
+if not wait_keygen(BASE, SIGNERS, timeout=60):
+    print("ERROR: Keygen not completed in time, aborting.")
+    for proc in processes:
+        proc.kill()
+    exit(1)
+print("Keygen completed.\n")
+
+# ===============================
 # 3) Request signing
 # ===============================
-print("\nRequesting signatures from nodes:", SIGNERS)
+print("Requesting signatures from nodes:", SIGNERS)
 for node_id in SIGNERS:
     port = BASE + node_id - 1
     url = f"http://127.0.0.1:{port}/admin/start-sign"
@@ -75,28 +110,25 @@ time.sleep(3)
 
 for node_id in SIGNERS:
     port = BASE + node_id - 1
-    url = f"http://127.0.0.1:{port}/status"
-    print(f"\n--- status node {node_id} ---")
     try:
-        resp = requests.get(url)
-        resp.raise_for_status()
-        print(json.dumps(resp.json(), indent=2))
-    except requests.RequestException as e:
-        print(f"Error fetching status from node {node_id}: {e}")
-    except json.JSONDecodeError:
-        print(f"Invalid JSON received from node {node_id}: {resp.text}")
+        r = requests.get(f"http://127.0.0.1:{port}/status")
+        print(f"\n--- Node {node_id} status ---")
+        print(json.dumps(r.json(), indent=4))
+    except Exception as e:
+        print(f"Error fetching status for node {node_id}: {e}")
 
-print("\nLogs per nodo: node_*.log")
+print("\nCheck issuer_output.json for the final aggregated result.")
 
 # ===============================
-# 5) Cleanup: terminare tutti i processi
+# 5) Cleanup
 # ===============================
-print("\nTerminating all node processes...")
+time.sleep(2)
+print("Shutting down all nodes...")
 for proc in processes:
     try:
-        proc.send_signal(signal.SIGINT)  # invia CTRL+C al processo
-        proc.wait(timeout=5)             # aspetta che termini
-    except subprocess.TimeoutExpired:
-        proc.kill()                      # se non risponde, forza kill
-        proc.wait()
-print("All node processes terminated.")
+        proc.send_signal(signal.SIGINT)
+    except Exception:
+        pass
+time.sleep(1)
+for proc in processes:
+    proc.terminate()

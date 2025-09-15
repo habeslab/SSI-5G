@@ -55,7 +55,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey, sign_iss
     print("m3 received and decrypted successfully")
 
     m4 = {
-        "attr": ["name", "age"],
+        "attr": ["plmnId", "siteId", "sliceId", "expirationDate"],
         "uri": m3_plain["uri"],
         "nc": from_bytes_to_B64(nc)
     }
