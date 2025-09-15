@@ -4,10 +4,12 @@ import logging
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
+import os
 
 # Configurazione del logging
+os.makedirs("../logs", exist_ok=True)
 logging.basicConfig(
-    filename='user.log',
+    filename='../logs/user.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
