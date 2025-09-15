@@ -9,7 +9,7 @@ from utils import *
 
 # Configurazione del logging
 logging.basicConfig(
-    filename='/tmp/verifier.log',
+    filename='verifier.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
