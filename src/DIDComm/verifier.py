@@ -4,6 +4,8 @@ import argparse
 import datetime
 import logging
 import sys
+import requests
+from http.server import BaseHTTPRequestHandler
 from cryptography.hazmat.primitives.asymmetric import x25519, ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
@@ -18,8 +20,23 @@ logging.basicConfig(
     filemode='w'
 )
 
+
+def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
+    auth_server_url = f"http://{authz_server_ip}:{authz_server_port}"
+
+    try:
+        r = requests.get(auth_server_url, headers={'X-Auth-Code': jwt_token}, timeout=2)
+        if r.status_code == 200:
+            logging.info("Access granted (HTTP 200)")
+        else:
+            logging.info("Access denied (HTTP 403)")
+    except Exception as e:
+        logging.info("Authorization server unreachable (HTTP 500)")
+        logging.info(e)
+
+
 def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
-             sign_issuer_pubkey, verifier_port):
+             sign_issuer_pubkey, verifier_port, authz_server_ip, authz_server_port):
     logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=5)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
@@ -135,14 +152,19 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
     }
 
+    jwt_token = emit_jwt_token(jwt_payload, sign_privkey)
+
     m6 = {
-        "jwt_token": emit_jwt_token(jwt_payload, k5)
+        "jwt_token": jwt_token
     }
 
     socket.send(
         prepare_msg(k5, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey),
                     ephemeral_pub, sign_user_pubkey, m6, k5))
     logging.info("Sent m6 (JWT token)")
+
+    logging.info(f"Contacting the Authorization Server at http://{authz_server_ip}:{authz_server_port}")
+    contact_authz_server(jwt_token, authz_server_ip, authz_server_port)
 
 
 if __name__ == '__main__':
@@ -151,6 +173,10 @@ if __name__ == '__main__':
                         help="Port on which the verifier listens")
     parser.add_argument("--input_folder", type=str, required=True,
                         help="Path of the folder containing JSON input file")
+    parser.add_argument("--authz_server_ip", type=str, required=True,
+                        help="IP address of the cloud Authorization Server")
+    parser.add_argument("--authz_server_port", type=str, required=True,
+                        help="Port of the cloud Authorization Server")
     args = parser.parse_args()
 
     with open(f"{args.input_folder}/verifier_input.json", "r", encoding="utf-8") as file:
@@ -164,4 +190,4 @@ if __name__ == '__main__':
     sign_issuer_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_issuer_pubkey"])
 
     verifier(ECDH_privkey, sign_privkey, sign_pubkey,
-             sign_user_pubkey, sign_issuer_pubkey, args.verifier_port)
+             sign_user_pubkey, sign_issuer_pubkey, args.verifier_port, args.authz_server_ip, args.authz_server_port)

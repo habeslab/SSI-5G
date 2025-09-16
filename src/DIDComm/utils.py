@@ -103,13 +103,13 @@ def extract_msg(msg, sign_pubkey, ECDH_privkey):
         from_B64_to_bytes(msg_encrypted["tag"])
     )
 
-    msg_json = from_bytes_to_json(msg)
+    return from_bytes_to_json(msg)
 
-    if "jwt_token" not in msg_json:
-        return msg_json
-
-    jwt_token = msg_json["jwt_token"]
-    return decode_jwt_token(jwt_token, k)
+    # if "jwt_token" not in msg_json:
+    #     return msg_json
+    #
+    # jwt_token = msg_json["jwt_token"]
+    # return decode_jwt_token(jwt_token, k)
 
 
 def wrap_key(k, k_wrap):
@@ -284,13 +284,15 @@ def get_hash(data: bytes):
 
 
 def emit_jwt_token(payload, key):
-    return jwt.encode(payload, key, algorithm="HS256")
+    return jwt.encode(payload, key, algorithm="EdDSA")
 
 
 def decode_jwt_token(token, key):
     try:
-        return jwt.decode(token, key, algorithms=["HS256"])
+        return jwt.decode(token, key, algorithms=["EdDSA"])
     except jwt.ExpiredSignatureError:
         print("Token expired")
+        return None
     except jwt.InvalidTokenError:
         print("Token not valid")
+        return None

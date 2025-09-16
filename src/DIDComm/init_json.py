@@ -41,6 +41,10 @@ def main():
         "sign_issuer_pubkey": issuer_output["sign_issuer_pubkey"],
     }
 
+    authz_server_input = {
+        "sign_verifier_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(verifier_sign_pubkey)),
+    }
+
     os.makedirs("./inputs", exist_ok=True)
 
     print("User input saved in ./inputs/user_input.json")
@@ -50,6 +54,10 @@ def main():
     print("Verifier input saved in ./inputs/verifier_input.json")
     with open("./inputs/verifier_input.json", "w", encoding="utf-8") as file:
         json.dump(verifier_input, file, ensure_ascii=False, indent=4)
+
+    print("Authorization server input saved in ./inputs/authz_server_input.json")
+    with open("./inputs/authz_server_input.json", "w", encoding="utf-8") as file:
+        json.dump(authz_server_input, file, ensure_ascii=False, indent=4)
 
 
 
