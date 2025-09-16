@@ -13,6 +13,29 @@ logging.basicConfig(
 )
 
 
+def is_allowed(jwt_token):
+    site_id = jwt_token["siteId"]
+    plmn_id = jwt_token["plmnId"]
+    slice_id = jwt_token["sliceId"]
+
+    if site_id not in network_resources:
+        logging.info(f"Site ID {site_id} is not valid")
+        return False
+    logging.info(f"Site ID {site_id} is valid")
+
+    if slice_id not in network_resources[site_id]:
+        logging.info(f"Slice ID {slice_id} is not valid")
+        return False
+    logging.info(f"Slice ID {slice_id} is valid")
+
+    if plmn_id == network_resources[site_id][slice_id]["plmnId"]:
+        logging.info(f"PLMN ID {plmn_id} is valid")
+        return True
+
+    logging.info(f"PLMN ID {plmn_id} is not valid")
+    return False
+
+
 class AAAHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
@@ -21,7 +44,7 @@ class AAAHandler(BaseHTTPRequestHandler):
             logging.info("Received JWT token:")
             logging.info(jwt_token_plain)
 
-            if jwt_token_plain is not None:
+            if jwt_token_plain is not None and is_allowed(jwt_token_plain):
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b'ACCESS GRANTED')
@@ -49,6 +72,7 @@ if __name__ == '__main__':
         authz_server_input = json.load(file)
 
     sign_verifier_pubkey = from_B64_to_ed25519_pubkey(authz_server_input["sign_verifier_pubkey"])
+    network_resources = authz_server_input["network_resources"]
     authz_server_ip = args.authz_server_ip
     authz_server_port = args.authz_server_port
 

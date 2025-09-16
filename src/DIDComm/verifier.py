@@ -144,11 +144,12 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
 
     verifiable_pres_bytes = from_json_to_bytes(verifiable_pres)
     verifiable_pres_bytes_hash = get_hash(verifiable_pres_bytes)
-    plmn_id = attr_res["plmnId"]
 
     jwt_payload = {
         "verifiable_pres_hash": from_bytes_to_B64(verifiable_pres_bytes_hash),
-        "plmnId": plmn_id,
+        "siteId": attr_res["siteId"],
+        "plmnId": attr_res["plmnId"],
+        "sliceId": attr_res["sliceId"],
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
     }
 

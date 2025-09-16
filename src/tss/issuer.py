@@ -23,9 +23,9 @@ SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
 EXPIRATION_DATE = datetime.datetime.utcnow() + datetime.timedelta(days=180)
 MESSAGE_DICT = {
-    "plmnId": "PLMN ID",
-    "siteId": "SITE ID",
-    "sliceId": "SLICE ID",
+    "plmnId": "22248",
+    "siteId": "1",
+    "sliceId": "2",
     "expirationDate":  EXPIRATION_DATE.strftime("%Y-%m-%d %H:%M:%S")
 }
 MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)

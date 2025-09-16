@@ -298,16 +298,8 @@ def decode_jwt_token(token, key):
         return None
 
 
-def create_network_site(site_id, slices):
+def create_network_slice(plmn_id, max_ping, min_throughput_mbps, uptime_percentage, isolation_level):
     return {
-        "siteId": site_id,
-        "slices": slices
-    }
-
-
-def create_network_slice(slice_id, plmn_id, max_ping, min_throughput_mbps, uptime_percentage, isolation_level):
-    return {
-        "sliceId": slice_id,
         "plmnId": plmn_id,
         "maxPing": max_ping,
         "minThroughputMbps": min_throughput_mbps,

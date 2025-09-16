@@ -5,7 +5,6 @@ import os
 
 def create_network_resources():
     slice1 = create_network_slice(
-        slice_id=1,
         plmn_id="22250",
         max_ping=100,
         min_throughput_mbps=30,
@@ -14,7 +13,6 @@ def create_network_resources():
     )
 
     slice2 = create_network_slice(
-        slice_id=2,
         plmn_id="22248",
         max_ping=200,
         min_throughput_mbps=50,
@@ -23,7 +21,6 @@ def create_network_resources():
     )
 
     slice3 = create_network_slice(
-        slice_id=3,
         plmn_id="22208",
         max_ping=20,
         min_throughput_mbps=400,
@@ -32,7 +29,6 @@ def create_network_resources():
     )
 
     slice4 = create_network_slice(
-        slice_id=4,
         plmn_id="22210",
         max_ping=50,
         min_throughput_mbps=50,
@@ -41,7 +37,6 @@ def create_network_resources():
     )
 
     slice5 = create_network_slice(
-        slice_id=1,
         plmn_id="22250",
         max_ping=10,
         min_throughput_mbps=1000,
@@ -50,7 +45,6 @@ def create_network_resources():
     )
 
     slice6 = create_network_slice(
-        slice_id=2,
         plmn_id="22208",
         max_ping=70,
         min_throughput_mbps=30,
@@ -59,7 +53,6 @@ def create_network_resources():
     )
 
     slice7 = create_network_slice(
-        slice_id=1,
         plmn_id="22250",
         max_ping=120,
         min_throughput_mbps=50,
@@ -68,7 +61,6 @@ def create_network_resources():
     )
 
     slice8 = create_network_slice(
-        slice_id=2,
         plmn_id="22210",
         max_ping=30,
         min_throughput_mbps=500,
@@ -77,7 +69,6 @@ def create_network_resources():
     )
 
     slice9 = create_network_slice(
-        slice_id=3,
         plmn_id="22248",
         max_ping=100,
         min_throughput_mbps=100,
@@ -85,23 +76,23 @@ def create_network_resources():
         isolation_level=3
     )
 
-    site1 = create_network_site(
-        site_id=1,
-        slices=[slice1, slice2, slice3, slice4]
-    )
-
-    site2 = create_network_site(
-        site_id=2,
-        slices=[slice5, slice6]
-    )
-
-    site3 = create_network_site(
-        site_id=3,
-        slices=[slice7, slice8, slice9]
-    )
-
-    return [site1, site2, site3]
-
+    return {
+        1: {
+            1: slice1,
+            2: slice2,
+            3: slice3,
+            4: slice4
+        },
+        2: {
+            1: slice5,
+            2: slice6
+        },
+        3: {
+            1: slice7,
+            2: slice8,
+            3: slice9
+        }
+    }
 
 
 def main():
@@ -144,6 +135,7 @@ def main():
 
     authz_server_input = {
         "sign_verifier_pubkey": from_bytes_to_B64(from_pubkey_to_bytes(verifier_sign_pubkey)),
+        "network_resources": create_network_resources()
     }
 
     os.makedirs("./inputs", exist_ok=True)
@@ -159,11 +151,6 @@ def main():
     print("Authorization server input saved in ./inputs/authz_server_input.json")
     with open("./inputs/authz_server_input.json", "w", encoding="utf-8") as file:
         json.dump(authz_server_input, file, ensure_ascii=False, indent=4)
-
-    print("Network resources saved in ./inputs/network_resources.json")
-    with open("./inputs/network_resources.json", "w", encoding="utf-8") as file:
-        json.dump(create_network_resources(), file, ensure_ascii=False, indent=4)
-
 
 
 if __name__ == '__main__':
