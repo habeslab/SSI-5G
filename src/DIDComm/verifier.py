@@ -3,6 +3,7 @@ import jcs
 import argparse
 import datetime
 import logging
+import sys
 from cryptography.hazmat.primitives.asymmetric import x25519, ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
@@ -44,11 +45,16 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     ECDH_user_pubkey = m1_plain["DIDDoc"]
     ECDH_user_pubkey_signature = m1_plain["DIDDoc_signature"]
 
-    assert th0_res == from_bytes_to_B64(th0), "Nonce not valid. Protocol aborted"
-    assert verify_signature(from_B64_to_bytes(ECDH_user_pubkey_signature),
+    if th0_res != from_bytes_to_B64(th0):
+        logging.info("Nonce not valid. Protocol aborted")
+        sys.exit(1)
+
+    if verify_signature(from_B64_to_bytes(ECDH_user_pubkey_signature),
                             from_B64_to_bytes(ECDH_user_pubkey),
-                            sign_user_pubkey) is None, \
-        "Signature not valid. Protocol aborted"
+                            sign_user_pubkey) is not None:
+        logging.info("Signature not valid. Protocol aborted")
+        sys.exit(1)
+
     logging.info("Nonce and signature successfully verified")
 
     DIDDoc_signature = sign(from_pubkey_to_bytes(ephemeral_pub), sign_privkey)
@@ -86,22 +92,38 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     verifiable_pres = m5_plain["verifiable_pres"]
 
     verifiable_pres_signature = m5_plain["verifiable_pres_signature"]
-    assert verify_signature(from_B64_to_bytes(verifiable_pres_signature),
+    if verify_signature(from_B64_to_bytes(verifiable_pres_signature),
                             from_json_to_bytes(verifiable_pres),
-                            sign_user_pubkey) is None, "VP signature not valid. Protocol aborted"
+                            sign_user_pubkey) is not None:
+        logging.info("VP signature not valid. Protocol aborted")
+        sys.exit(1)
 
-    attr_res = verifiable_pres["verifiable_cred"]["attr"]
-    issuer_sig = verifiable_pres["verifiable_cred"]["issuer_sig"]
+    verifiable_cred = verifiable_pres["verifiable_cred"]
+    attr_res = verifiable_cred["attr"]
+    issuer_sig = verifiable_cred["issuer_sig"]
 
-    logging.info("VC: %s", verifiable_pres["verifiable_cred"])
+    logging.info("VC: %s", verifiable_cred)
 
-    assert verify_signature(from_B64_to_bytes(issuer_sig),
+    if verify_signature(from_B64_to_bytes(issuer_sig),
                             from_bytes_to_B64(jcs.canonicalize(attr_res)).encode("UTF-8"),
-                            sign_issuer_pubkey) is None, "VC signature not valid. Protocol aborted"
+                            sign_issuer_pubkey) is not None:
+        logging.info("VC signature not valid. Protocol aborted")
+        sys.exit(1)
 
     nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["m4"]["nc"])
-    assert nc_res == nc_res, "Nonce not valid. Protocol aborted"
-    assert set(attr_res.keys()) == set(m4["attr"]), "VC attributes not valid. Protocol aborted"
+
+    if nc != nc_res:
+        logging.info("Nonce not valid. Protocol aborted")
+        sys.exit(1)
+
+    if set(attr_res.keys()) != set(m4["attr"]):
+        logging.info("VC attributes not valid. Protocol aborted")
+        sys.exit(1)
+
+    if (datetime.datetime.strptime(attr_res["expirationDate"], "%Y-%m-%d %H:%M:%S") <
+            datetime.datetime.utcnow()):
+        logging.info("VC expired. Protocol aborted")
+        sys.exit(1)
 
     verifiable_pres_bytes = from_json_to_bytes(verifiable_pres)
     verifiable_pres_bytes_hash = get_hash(verifiable_pres_bytes)

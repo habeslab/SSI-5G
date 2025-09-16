@@ -53,11 +53,16 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     ECDH_verifier_pubkey = m2_plain["DIDDoc"]
     ECDH_verifier_pubkey_signature = m2_plain["DIDDoc_signature"]
 
-    assert th1_res == from_bytes_to_B64(th1), "Nonce not valid. Protocol aborted"
-    assert verify_signature(from_B64_to_bytes(ECDH_verifier_pubkey_signature),
+    if th1_res != from_bytes_to_B64(th1):
+        logging.info("Nonce not valid. Protocol aborted")
+        sys.exit(1)
+
+    if verify_signature(from_B64_to_bytes(ECDH_verifier_pubkey_signature),
                             from_B64_to_bytes(ECDH_verifier_pubkey),
-                            sign_verifier_pubkey) is None, \
-        "Signature not valid. Protocol aborted"
+                            sign_verifier_pubkey) is not None:
+        logging.info("Signature not valid. Protocol aborted")
+        sys.exit(1)
+
     logging.info("Nonce and signature successfully verified")
 
     m3 = {
@@ -74,7 +79,10 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     logging.info("m4 received and decrypted successfully")
 
     uri_res = m4_plain["uri"]
-    assert uri_res == m3["uri"], "URI not valid. Protocol aborted"
+
+    if uri_res != m3["uri"]:
+        logging.info("URI not valid. Protocol aborted")
+        sys.exit(1)
 
     verifiable_pres = {
         "m4": m4_plain,

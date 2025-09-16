@@ -5,26 +5,28 @@ import base64
 import json
 import requests
 import signal
+import datetime
 import os
 import jcs
 
 # ===============================
 # Configurazione
 # ===============================
-N = 4
+N = 3
 BASE = 8000
-TH = 3
+TH = 2
 
 NODE_BINARY = "./node"
 CMD_PATH = "./main.go"
 
 SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
+EXPIRATION_DATE = datetime.datetime.utcnow() + datetime.timedelta(days=180)
 MESSAGE_DICT = {
     "plmnId": "PLMN ID",
     "siteId": "SITE ID",
     "sliceId": "SLICE ID",
-    "expirationDate": "EXPIRATION DATE"
+    "expirationDate":  EXPIRATION_DATE.strftime("%Y-%m-%d %H:%M:%S")
 }
 MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)
 MESSAGE_B64 = base64.b64encode(MESSAGE_JSON).decode("utf-8")
