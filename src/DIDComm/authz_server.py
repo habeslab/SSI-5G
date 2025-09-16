@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from utils import *
 import logging
+import ssl
 import argparse
 
 # Logging configuration
@@ -36,7 +37,23 @@ def is_allowed(jwt_token):
     return False
 
 
-class AAAHandler(BaseHTTPRequestHandler):
+def run_server():
+    server_address = (authz_server_ip, authz_server_port)
+    httpd = HTTPServer(server_address, AuthzHandler)
+
+    # Configure SSL
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.verify_mode = ssl.CERT_REQUIRED  # Enable mutual authentication
+    context.load_cert_chain(
+        certfile=f"{args.input_folder}/certs/server.crt",
+        keyfile=f"{args.input_folder}/certs/server.key")
+    context.load_verify_locations(f"{args.input_folder}/certs/ca.crt")  # CA certificate
+
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    httpd.serve_forever()
+
+
+class AuthzHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             jwt_token = self.headers.get('X-Auth-Code')
@@ -65,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument("--authz_server_port", type=int, required=True,
                         help="Port of the cloud Authorization Server")
     parser.add_argument("--input_folder", type=str, required=True,
-                        help="Path of the folder containing JSON input file")
+                        help="Path of the folder containing JSON input file and TLS certificates")
     args = parser.parse_args()
 
     with open(f"{args.input_folder}/authz_server_input.json", "r", encoding="utf-8") as file:
@@ -76,5 +93,6 @@ if __name__ == '__main__':
     authz_server_ip = args.authz_server_ip
     authz_server_port = args.authz_server_port
 
-    logging.info(f"Starting authorization server on http://{authz_server_ip}:{authz_server_port}")
-    HTTPServer((authz_server_ip, authz_server_port), AAAHandler).serve_forever()
+    logging.info(f"Starting authorization server on https://{authz_server_ip}:{authz_server_port}")
+    # HTTPServer((authz_server_ip, authz_server_port), AAAHandler).serve_forever()
+    run_server()

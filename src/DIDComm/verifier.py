@@ -4,6 +4,7 @@ import argparse
 import datetime
 import logging
 import sys
+import ssl
 import requests
 from http.server import BaseHTTPRequestHandler
 from cryptography.hazmat.primitives.asymmetric import x25519, ec
@@ -22,10 +23,16 @@ logging.basicConfig(
 
 
 def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
-    auth_server_url = f"http://{authz_server_ip}:{authz_server_port}"
+    auth_server_url = f"https://{authz_server_ip}:{authz_server_port}"
 
     try:
-        r = requests.get(auth_server_url, headers={'X-Auth-Code': jwt_token}, timeout=2)
+        r = requests.get(
+            auth_server_url,
+            headers={'X-Auth-Code': jwt_token},
+            timeout=2,
+            cert=(f"{args.input_folder}/certs/client.crt", f"{args.input_folder}/certs/client.key"),
+            verify=f"{args.input_folder}/certs/ca.crt"
+        )
         if r.status_code == 200:
             logging.info("Access granted (HTTP 200)")
         else:
@@ -164,7 +171,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
                     ephemeral_pub, sign_user_pubkey, m6, k5))
     logging.info("Sent m6 (JWT token)")
 
-    logging.info(f"Contacting the Authorization Server at http://{authz_server_ip}:{authz_server_port}")
+    logging.info(f"Contacting the Authorization Server at https://{authz_server_ip}:{authz_server_port}")
     contact_authz_server(jwt_token, authz_server_ip, authz_server_port)
 
 
