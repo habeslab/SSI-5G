@@ -7,14 +7,18 @@ import requests
 import signal
 import datetime
 import os
+import csv
 import jcs
+from dotenv import load_dotenv
 
 # ===============================
 # Configurazione
 # ===============================
-N = 3
-BASE = 8000
-TH = 2
+
+load_dotenv()
+N = int(os.getenv("N_SIGNERS"))
+BASE = int(os.getenv("ISSUER_BASE_PORT"))
+TH = int(N) - 1
 
 NODE_BINARY = "./node"
 CMD_PATH = "./main.go"
@@ -23,13 +27,26 @@ SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
 EXPIRATION_DATE = datetime.datetime.utcnow() + datetime.timedelta(days=180)
 MESSAGE_DICT = {
-    "plmnId": "22248",
-    "siteId": "1",
-    "sliceId": "2",
+    "plmnId": os.getenv("REQ_PLMN_ID"), # "22248",
+    "siteId": os.getenv("REQ_SITE_ID"), # "1",
+    "sliceId": os.getenv("REQ_SLICE_ID"), # "2",
     "expirationDate":  EXPIRATION_DATE.strftime("%Y-%m-%d %H:%M:%S")
 }
 MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)
 MESSAGE_B64 = base64.b64encode(MESSAGE_JSON).decode("utf-8")
+
+
+def save_results_csv(n_signers, time_value):
+    filename = "./logs/results.csv"
+    file_exists = os.path.isfile(filename)
+
+    with open(filename, mode="a", newline="") as f:
+        writer = csv.writer(f)
+
+        if not file_exists:
+            writer.writerow(["n_signers", "time"])
+        writer.writerow([n_signers, time_value])
+
 
 
 # ===============================
@@ -47,6 +64,9 @@ else:
 # ===============================
 processes = []
 
+# Begin time measurement
+start = time.perf_counter()
+
 for i in range(1, N + 1):
     port = BASE + i - 1
     print(f"Starting node {i} on port {port}")
@@ -57,6 +77,22 @@ for i in range(1, N + 1):
     )
     processes.append(proc)
     time.sleep(0.1)
+
+
+# Start psrecord to monitor all nodes
+psrecord_procs = []
+os.makedirs("./logs", exist_ok=True)
+for i, proc in enumerate(processes, start=1):
+    log_file = f"./logs/node_{i}_usage.log"
+    plot_file = f"./logs/node_{i}_usage.png"
+    ps = subprocess.Popen([
+        "psrecord",
+        str(proc.pid),
+        "--interval", "0.5",        # campionamento ogni 0.5s
+        "--log", log_file,
+        "--plot", plot_file
+    ])
+    psrecord_procs.append(ps)
 
 time.sleep(2)
 
@@ -121,16 +157,30 @@ for node_id in SIGNERS:
 
 print("\nCheck issuer_output.json for the final aggregated result.")
 
-# ===============================
-# 5) Cleanup
-# ===============================
-time.sleep(2)
-print("Shutting down all nodes...")
-for proc in processes:
-    try:
-        proc.send_signal(signal.SIGINT)
-    except Exception:
-        pass
-time.sleep(1)
-for proc in processes:
-    proc.terminate()
+# End time measurement
+end = time.perf_counter()
+elapsed = end - start
+
+try:
+    save_results_csv(N, elapsed)
+finally:
+    # ===============================
+    # 5) Cleanup
+    # ===============================
+
+    for ps in psrecord_procs:
+        try:
+            ps.terminate()
+        except Exception:
+            pass
+
+    time.sleep(2)
+    print("Shutting down all nodes...")
+    for proc in processes:
+        try:
+            proc.send_signal(signal.SIGINT)
+        except Exception:
+            pass
+    time.sleep(1)
+    for proc in processes:
+        proc.terminate()
