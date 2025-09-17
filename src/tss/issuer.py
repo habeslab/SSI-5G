@@ -9,14 +9,22 @@ import datetime
 import os
 import csv
 import jcs
+import argparse
 from dotenv import load_dotenv
+
+
+parser = argparse.ArgumentParser(description="Script for VC issue")
+parser.add_argument("--n_signers", type=int, required=True,
+                        help="Num of signers")
+args = parser.parse_args()
+
 
 # ===============================
 # Configurazione
 # ===============================
 
 load_dotenv()
-N = int(os.getenv("N_SIGNERS"))
+N = args.n_signers
 BASE = int(os.getenv("ISSUER_BASE_PORT"))
 TH = int(N) - 1
 

@@ -11,8 +11,7 @@ __pycache__/
 .vscode/
 .idea/
 
-# JSON files
+# Input and log files
 *.json
-
-# Logs
 *.log
+*.csv
