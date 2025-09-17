@@ -28,22 +28,24 @@ SSI_INPUT_FOLDER = os.getenv("SSI_INPUT_FOLDER")
 
 
 def start_authz_server(authz_server):
-    authz_server.cmd(f'{SSI_INTERPRETER_PATH} {SSI_AUTHZ_SERVER_PATH} --authz_server_ip {AUTHZ_SERVER_IP} --authz_server_port {AUTHZ_SERVER_PORT} --input_folder {SSI_INPUT_FOLDER} &')
+    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_AUTHZ_SERVER_PATH} --authz_server_ip {AUTHZ_SERVER_IP} '
+           f'--authz_server_port {AUTHZ_SERVER_PORT} --input_folder {SSI_INPUT_FOLDER} &')
+    authz_server.cmd(cmd)
     print(f"*** Authorization server started, logged in logs folder")
-
-
-def start_vpn_gateway(host):
-    host.cmd(f'{MININET_INTERPRETER_PATH} vpn_gateway.py &')
     
     
 def start_ssi_user(ue, c_bbu_ip):
-    out = ue.cmd(f'{SSI_INTERPRETER_PATH} {SSI_USER_PATH} --verifier_ip {c_bbu_ip} --verifier_port {VERIFIER_PORT} --input_folder {SSI_INPUT_FOLDER} &')
+    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_USER_PATH} --verifier_ip {c_bbu_ip} --verifier_port {VERIFIER_PORT} '
+           f'--input_folder {SSI_INPUT_FOLDER} &')
+    ue.cmd(cmd)
     print(f"*** SSI user started, logged in logs folder")
 
     
     
 def start_ssi_verifier(c_bbu):
-    c_bbu.cmd(f'{SSI_INTERPRETER_PATH} {SSI_VERIFIER_PATH} --verifier_port {VERIFIER_PORT} --input_folder {SSI_INPUT_FOLDER} --authz_server_ip {AUTHZ_SERVER_IP} --authz_server_port {AUTHZ_SERVER_PORT} &')
+    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_VERIFIER_PATH} --verifier_port {VERIFIER_PORT} --input_folder '
+           f'{SSI_INPUT_FOLDER} --authz_server_ip {AUTHZ_SERVER_IP} --authz_server_port {AUTHZ_SERVER_PORT} &')
+    c_bbu.cmd(cmd)
     print(f"*** SSI verifier started, logged in logs folder")
 
 
@@ -127,10 +129,6 @@ def main():
             print(host1, "<->", host2)
 
         start_authz_server(net.get("authz"))
-        # print("*** AAA server successfully started")
-
-        # start_vpn_gateway(net.get("vpn_gate"))
-        # print("*** VPN gateway successfully started")
 
         c_bbu = net.get("c_bbu")
         start_ssi_user(net.get("ue0"), c_bbu.IP())
