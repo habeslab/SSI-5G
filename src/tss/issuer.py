@@ -45,7 +45,7 @@ MESSAGE_B64 = base64.b64encode(MESSAGE_JSON).decode("utf-8")
 
 
 def save_results_csv(n_signers, time_value):
-    filename = "./logs/results.csv"
+    filename = f"./logs/N{N}/results.csv"
     file_exists = os.path.isfile(filename)
 
     with open(filename, mode="a", newline="") as f:
@@ -89,10 +89,10 @@ for i in range(1, N + 1):
 
 # Start psrecord to monitor all nodes
 psrecord_procs = []
-os.makedirs("./logs", exist_ok=True)
+os.makedirs(f"./logs/N{N}", exist_ok=True)
 for i, proc in enumerate(processes, start=1):
-    log_file = f"./logs/node_{i}_usage.log"
-    plot_file = f"./logs/node_{i}_usage.png"
+    log_file = f"./logs/N{N}/node_{i}_usage.log"
+    plot_file = f"./logs/N{N}/node_{i}_usage.png"
     ps = subprocess.Popen([
         "psrecord",
         str(proc.pid),
