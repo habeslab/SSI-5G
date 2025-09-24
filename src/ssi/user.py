@@ -66,7 +66,10 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     logging.info("Nonce and signature successfully verified")
 
     m3 = {
-        "uri": "URI"
+        "uri": {
+            "siteId": verifiable_cred["attr"]["siteId"],
+            "sliceId": verifiable_cred["attr"]["sliceId"],
+        }
     }
 
     socket.send(prepare_msg(k2, ephemeral_priv,
