@@ -154,9 +154,9 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
 
     jwt_payload = {
         "verifiable_pres_hash": from_bytes_to_B64(verifiable_pres_bytes_hash),
-        "siteId": attr_res["siteId"],
+        "siteId": m3_plain["uri"]["siteId"],
         "plmnId": attr_res["plmnId"],
-        "sliceId": attr_res["sliceId"],
+        "sliceId": m3_plain["uri"]["sliceId"],
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
     }
 
