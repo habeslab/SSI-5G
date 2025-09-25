@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
 import os
+from dotenv import load_dotenv
 
 # Configurazione del logging
 os.makedirs("./logs", exist_ok=True)
@@ -14,6 +15,8 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     filemode='w'
 )
+
+load_dotenv()
 
 def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
          sign_verifier_pubkey, verifiable_cred, verifier_ip, verifier_port):
@@ -67,8 +70,8 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
 
     m3 = {
         "uri": {
-            "siteId": verifiable_cred["attr"]["siteId"],
-            "sliceId": verifiable_cred["attr"]["sliceId"],
+            "siteId": os.getenv("REQ_SITE_ID"),
+            "sliceId": os.getenv("REQ_SLICE_ID"),
         }
     }
 

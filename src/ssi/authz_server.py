@@ -16,8 +16,12 @@ logging.basicConfig(
 
 def is_allowed(jwt_token):
     site_id = jwt_token["siteId"]
-    plmn_id = jwt_token["plmnId"]
     slice_id = jwt_token["sliceId"]
+    plmn_id = jwt_token["plmnId"]
+    max_ping = int(jwt_token["maxPing"])
+    min_throughput_mbps = int(jwt_token["minThroughputMbps"])
+    uptime_percentage = int(jwt_token["uptimePercentage"])
+    isolation_level = int(jwt_token["isolationLevel"])
 
     if site_id not in network_resources:
         logging.info(f"Site ID {site_id} is not valid")
@@ -29,12 +33,34 @@ def is_allowed(jwt_token):
         return False
     logging.info(f"Slice ID {slice_id} is valid")
 
-    if plmn_id == network_resources[site_id][slice_id]["plmnId"]:
-        logging.info(f"PLMN ID {plmn_id} is valid")
-        return True
+    if plmn_id != network_resources[site_id][slice_id]["plmnId"]:
+        logging.info(f"PLMN ID {plmn_id} is not valid")
+        return False
 
-    logging.info(f"PLMN ID {plmn_id} is not valid")
-    return False
+    logging.info(f"PLMN ID {plmn_id} is valid")
+
+    if max_ping < network_resources[site_id][slice_id]["maxPing"]:
+        logging.info(
+            f'Max ping {max_ping} is not valid. Requested at least {network_resources[site_id][slice_id]["maxPing"]:}')
+        return False
+
+    if int(min_throughput_mbps) > int(network_resources[site_id][slice_id]["minThroughputMbps"]):
+        logging.info(
+            f'Min throughput {min_throughput_mbps} is not valid. Requested max {network_resources[site_id][slice_id]["minThroughputMbps"]:}')
+        return False
+
+    if int(uptime_percentage) > int(network_resources[site_id][slice_id]["uptimePercentage"]):
+        logging.info(
+            f'Uptime percentage {uptime_percentage} is not valid. Requested max {network_resources[site_id][slice_id]["uptimePercentage"]:}')
+        return False
+
+    if int(isolation_level) > int(network_resources[site_id][slice_id]["isolationLevel"]):
+        logging.info(
+            f'Isolation level {isolation_level} is not valid. Requested max {network_resources[site_id][slice_id]["isolationLevel"]:}')
+        return False
+
+    logging.info("Access granted")
+    return True
 
 
 def run_server():

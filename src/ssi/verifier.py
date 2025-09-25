@@ -99,7 +99,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     logging.info("m3 received and decrypted successfully")
 
     m4 = {
-        "attr": ["plmnId", "siteId", "sliceId", "expirationDate"],
+        "attr": ["plmnId", "maxPing", "minThroughputMbps", "uptimePercentage", "isolationLevel", "expirationDate"],
         "uri": m3_plain["uri"],
         "nc": from_bytes_to_B64(nc)
     }
@@ -154,8 +154,12 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
 
     jwt_payload = {
         "verifiable_pres_hash": from_bytes_to_B64(verifiable_pres_bytes_hash),
-        "siteId": m3_plain["uri"]["siteId"],
         "plmnId": attr_res["plmnId"],
+        "maxPing": attr_res["maxPing"],
+        "minThroughputMbps": attr_res["minThroughputMbps"],
+        "uptimePercentage": attr_res["uptimePercentage"],
+        "isolationLevel": attr_res["isolationLevel"],
+        "siteId": m3_plain["uri"]["siteId"],
         "sliceId": m3_plain["uri"]["sliceId"],
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
     }

@@ -35,9 +35,11 @@ SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
 EXPIRATION_DATE = datetime.datetime.utcnow() + datetime.timedelta(days=180)
 MESSAGE_DICT = {
-    "plmnId": os.getenv("REQ_PLMN_ID"), # "22248",
-    "siteId": os.getenv("REQ_SITE_ID"), # "1",
-    "sliceId": os.getenv("REQ_SLICE_ID"), # "2",
+    "plmnId": os.getenv("SUB_PLMN_ID"),
+    "maxPing": os.getenv("SUB_MAX_PING"),
+    "minThroughputMbps": os.getenv("SUB_MIN_THROUGHPUT_MBPS"),
+    "uptimePercentage": os.getenv("SUB_UPTIME_PERCENTAGE"),
+    "isolationLevel": os.getenv("SUB_ISOLATION_LEVEL"),
     "expirationDate":  EXPIRATION_DATE.strftime("%Y-%m-%d %H:%M:%S")
 }
 MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)

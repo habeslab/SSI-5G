@@ -13,7 +13,7 @@ def create_network_resources():
     )
 
     slice2 = create_network_slice(
-        plmn_id="22248",
+        plmn_id="22210",
         max_ping=200,
         min_throughput_mbps=50,
         uptime_percentage=90,
@@ -29,7 +29,7 @@ def create_network_resources():
     )
 
     slice4 = create_network_slice(
-        plmn_id="22210",
+        plmn_id="22248",
         max_ping=50,
         min_throughput_mbps=50,
         uptime_percentage=50,
