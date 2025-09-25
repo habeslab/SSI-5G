@@ -1,7 +1,6 @@
 package main
 
 import (
-    "crypto/ed25519"
     "encoding/base64"
     "encoding/json"
     "flag"
@@ -15,18 +14,18 @@ import (
 
     "github.com/gorilla/websocket"
 
-    "github.com/taurusgroup/frost-ed25519/pkg/eddsa"
     "github.com/taurusgroup/frost-ed25519/pkg/frost"
     "github.com/taurusgroup/frost-ed25519/pkg/frost/keygen"
     "github.com/taurusgroup/frost-ed25519/pkg/frost/party"
     "github.com/taurusgroup/frost-ed25519/pkg/frost/sign"
     "github.com/taurusgroup/frost-ed25519/pkg/messages"
     "github.com/taurusgroup/frost-ed25519/pkg/state"
+    "github.com/taurusgroup/frost-ed25519/pkg/eddsa"
+    "crypto/ed25519"
 )
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
-// Node definisce il partecipante
 type Node struct {
     Id        party.ID
     N         int
@@ -36,17 +35,13 @@ type Node struct {
     peers   map[party.ID]*websocket.Conn
     peersMu sync.RWMutex
 
-    incoming   chan []byte     // unico canale dai socket
-    handlers   []chan []byte   // lista di canali per le istanze attive
-    handlersMu sync.RWMutex
-
+    recv chan []byte
     send chan *messages.Message
 
     keygenOutput *keygen.Output
     signOutput   *sign.Output
 }
 
-// NewNode crea un nuovo nodo
 func NewNode(id int, n int, basePort int, threshold int) *Node {
     return &Node{
         Id:        party.ID(id),
@@ -54,27 +49,9 @@ func NewNode(id int, n int, basePort int, threshold int) *Node {
         Threshold: party.Size(threshold),
         BasePort:  basePort,
         peers:     make(map[party.ID]*websocket.Conn),
-        incoming:  make(chan []byte, 1024),
-        handlers:  make([]chan []byte, 0),
+        recv:      make(chan []byte, 1024),
         send:      make(chan *messages.Message, 1024),
     }
-}
-
-func (nd *Node) registerHandler(ch chan []byte) {
-    nd.handlersMu.Lock()
-    nd.handlers = append(nd.handlers, ch)
-    nd.handlersMu.Unlock()
-}
-
-func (nd *Node) unregisterHandler(ch chan []byte) {
-    nd.handlersMu.Lock()
-    for i, h := range nd.handlers {
-        if h == ch {
-            nd.handlers = append(nd.handlers[:i], nd.handlers[i+1:]...)
-            break
-        }
-    }
-    nd.handlersMu.Unlock()
 }
 
 func (nd *Node) waitForAllPeers() {
@@ -113,21 +90,6 @@ func (nd *Node) Start() {
 
     nd.waitForAllPeers()
     go nd.sendPump()
-
-    // broadcaster che duplica i messaggi a tutte le istanze
-    go func() {
-        for data := range nd.incoming {
-            nd.handlersMu.RLock()
-            for _, h := range nd.handlers {
-                select {
-                case h <- data:
-                default:
-                    log.Printf("[node %d] warning: handler channel full, dropping message", nd.Id)
-                }
-            }
-            nd.handlersMu.RUnlock()
-        }
-    }()
 
     ids := make([]party.ID, nd.N)
     for i := 1; i <= nd.N; i++ {
@@ -203,7 +165,7 @@ func (nd *Node) connReadLoop(conn *websocket.Conn, remote party.ID) {
         if mt != websocket.BinaryMessage {
             continue
         }
-        nd.incoming <- data
+        nd.recv <- data
     }
 }
 
@@ -236,11 +198,10 @@ func (nd *Node) sendPump() {
     }
 }
 
-func (nd *Node) handleState(s *state.State, recv chan []byte) {
-    defer nd.unregisterHandler(recv)
+func (nd *Node) handleState(s *state.State) {
     for {
         select {
-        case data := <-recv:
+        case data := <-nd.recv:
             var msg messages.Message
             if err := msg.UnmarshalBinary(data); err != nil {
                 log.Println("unmarshal error:", err)
@@ -268,9 +229,7 @@ func (nd *Node) runKeyGen(set party.IDSlice, threshold party.Size) {
         log.Fatalf("NewKeygenState: %v", err)
     }
 
-    ch := make(chan []byte, 1024)
-    nd.registerHandler(ch)
-    go nd.handleState(keygenState, ch)
+    go nd.handleState(keygenState)
 
     initial := keygenState.ProcessAll()
     for _, m := range initial {
@@ -305,9 +264,7 @@ func (nd *Node) runSign(signers []party.ID, message []byte) {
         log.Fatalf("NewSignState: %v", err)
     }
 
-    ch := make(chan []byte, 1024)
-    nd.registerHandler(ch)
-    go nd.handleState(signState, ch)
+    go nd.handleState(signState)
 
     for _, m := range signState.ProcessAll() {
         nd.send <- m
@@ -319,6 +276,7 @@ func (nd *Node) runSign(signers []party.ID, message []byte) {
 
     nd.signOutput = signOutput
 
+    // Firma Ed25519 standard
     sigEd := signOutput.Signature.ToEd25519()
     sigB64 := base64.StdEncoding.EncodeToString(sigEd)
     log.Printf("[node %d] Signature generated (Ed25519, Base64): %s", nd.Id, sigB64)
@@ -347,17 +305,8 @@ func (nd *Node) adminStartSignHandler(w http.ResponseWriter, r *http.Request) {
             myIn = true
         }
     }
-
-    // decodifica base64 del messaggio
-    var msgBytes []byte
-    if mb, err := base64.StdEncoding.DecodeString(req.Message); err == nil {
-        msgBytes = mb
-    } else {
-        msgBytes = []byte(req.Message)
-    }
-
     if myIn {
-        go nd.runSign(signerIDs, msgBytes)
+        go nd.runSign(signerIDs, []byte(req.Message))
     }
     w.WriteHeader(http.StatusAccepted)
 }
@@ -390,12 +339,13 @@ func printGroupKey(key *eddsa.PublicKey) (string, ed25519.PublicKey, string) {
     return hexString, byteData, keyBase64
 }
 
+// Genera issuer_output.json con messaggio leggibile e firma Ed25519 standard
 func writeIssuerOutput(groupKeyB64 string, message []byte, signatureB64 string) {
     output := map[string]interface{}{
         "sign_issuer_pubkey": groupKeyB64,
         "verifiable_cred": map[string]interface{}{
-            "attr":       string(message),
-            "issuer_sig": signatureB64,
+            "attr":       string(message), // messaggio leggibile
+            "issuer_sig": signatureB64,    // firma Ed25519 standard
         },
     }
 
