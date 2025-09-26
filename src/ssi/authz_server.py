@@ -39,22 +39,22 @@ def is_allowed(jwt_token):
 
     logging.info(f"PLMN ID {plmn_id} is valid")
 
-    if max_ping < network_resources[site_id][slice_id]["maxPing"]:
+    if max_ping > network_resources[site_id][slice_id]["maxPing"]:
         logging.info(
-            f'Max ping {max_ping} is not valid. Requested at least {network_resources[site_id][slice_id]["maxPing"]:}')
+            f'Max ping {max_ping} is not valid. Requested max {network_resources[site_id][slice_id]["maxPing"]:}')
         return False
 
-    if int(min_throughput_mbps) > int(network_resources[site_id][slice_id]["minThroughputMbps"]):
+    if int(min_throughput_mbps) < int(network_resources[site_id][slice_id]["minThroughputMbps"]):
         logging.info(
-            f'Min throughput {min_throughput_mbps} is not valid. Requested max {network_resources[site_id][slice_id]["minThroughputMbps"]:}')
+            f'Min throughput {min_throughput_mbps} is not valid. Requested at least {network_resources[site_id][slice_id]["minThroughputMbps"]:}')
         return False
 
-    if int(uptime_percentage) > int(network_resources[site_id][slice_id]["uptimePercentage"]):
+    if int(uptime_percentage) < int(network_resources[site_id][slice_id]["uptimePercentage"]):
         logging.info(
             f'Uptime percentage {uptime_percentage} is not valid. Requested max {network_resources[site_id][slice_id]["uptimePercentage"]:}')
         return False
 
-    if int(isolation_level) > int(network_resources[site_id][slice_id]["isolationLevel"]):
+    if int(isolation_level) < int(network_resources[site_id][slice_id]["isolationLevel"]):
         logging.info(
             f'Isolation level {isolation_level} is not valid. Requested max {network_resources[site_id][slice_id]["isolationLevel"]:}')
         return False
