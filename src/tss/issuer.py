@@ -104,7 +104,7 @@ for i, proc in enumerate(processes, start=1):
     ])
     psrecord_procs.append(ps)
 
-time.sleep(2)
+#time.sleep(2)
 
 # ===============================
 # Helper: wait for keygen
@@ -154,7 +154,7 @@ for node_id in SIGNERS:
 # ===============================
 # 4) Wait and fetch statuses
 # ===============================
-time.sleep(3)
+#time.sleep(3)
 
 for node_id in SIGNERS:
     port = BASE + node_id - 1
