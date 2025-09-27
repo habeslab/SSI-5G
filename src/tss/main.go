@@ -11,9 +11,9 @@ import (
     "strconv"
     "sync"
     "time"
-
+    "encoding/csv"
     "github.com/gorilla/websocket"
-
+    "path/filepath"
     "github.com/taurusgroup/frost-ed25519/pkg/frost"
     "github.com/taurusgroup/frost-ed25519/pkg/frost/keygen"
     "github.com/taurusgroup/frost-ed25519/pkg/frost/party"
@@ -219,7 +219,37 @@ func (nd *Node) sendPump() {
     }
 }
 
-// Funzione che salva il totale dei KB in un file alla fine del protocollo
+// // Funzione che salva il totale dei byte in un file alla fine del protocollo
+// func (nd *Node) SaveTotalVolumeBytes() {
+//     nd.bytesMu.Lock()
+//     defer nd.bytesMu.Unlock()
+//
+//     var totalBytes int64
+//     for pid := range nd.peers {
+//         totalBytes += nd.bytesSent[pid]
+//         totalBytes += nd.bytesReceived[pid]
+//     }
+//
+//     // totalKB := totalBytes / 1024
+//
+//     dir := fmt.Sprintf("./logs/N%d/volumes", nd.N)
+//     if err := os.MkdirAll(dir, 0755); err != nil {
+//         log.Fatalf("failed to create directory %s: %v", dir, err)
+//     }
+//
+//     filename := fmt.Sprintf("./logs/N%d/volumes/node_%d_volume.txt", nd.N, nd.Id)
+//     file, err := os.Create(filename)
+//     if err != nil {
+//         log.Printf("[node %d] failed to create file %s: %v", nd.Id, filename, err)
+//         return
+//     }
+//     defer file.Close()
+//
+//     _, _ = file.WriteString(fmt.Sprintf("%d\n", totalBytes))
+//     log.Printf("[node %d] total volume saved: %d KB", nd.Id, totalBytes)
+// }
+
+
 func (nd *Node) SaveTotalVolumeBytes() {
     nd.bytesMu.Lock()
     defer nd.bytesMu.Unlock()
@@ -230,14 +260,12 @@ func (nd *Node) SaveTotalVolumeBytes() {
         totalBytes += nd.bytesReceived[pid]
     }
 
-    // totalKB := totalBytes / 1024
-
     dir := fmt.Sprintf("./logs/N%d/volumes", nd.N)
     if err := os.MkdirAll(dir, 0755); err != nil {
         log.Fatalf("failed to create directory %s: %v", dir, err)
     }
 
-    filename := fmt.Sprintf("./logs/N%d/volumes/node_%d_volume.txt", nd.N, nd.Id)
+    filename := filepath.Join(dir, fmt.Sprintf("node_%d_volume.csv", nd.Id))
     file, err := os.Create(filename)
     if err != nil {
         log.Printf("[node %d] failed to create file %s: %v", nd.Id, filename, err)
@@ -245,8 +273,24 @@ func (nd *Node) SaveTotalVolumeBytes() {
     }
     defer file.Close()
 
-    _, _ = file.WriteString(fmt.Sprintf("%d\n", totalBytes))
-    log.Printf("[node %d] total volume saved: %d KB", nd.Id, totalBytes)
+    writer := csv.NewWriter(file)
+    defer writer.Flush()
+
+    if err := writer.Write([]string{"n_signers", "volume_bytes"}); err != nil {
+        log.Printf("[node %d] failed to write CSV header: %v", nd.Id, err)
+        return
+    }
+
+    record := []string{
+        fmt.Sprintf("%d", nd.Id),
+        fmt.Sprintf("%d", totalBytes),
+    }
+    if err := writer.Write(record); err != nil {
+        log.Printf("[node %d] failed to write CSV record: %v", nd.Id, err)
+        return
+    }
+
+    log.Printf("[node %d] total volume saved: %d bytes", nd.Id, totalBytes)
 }
 
 func (nd *Node) handleState(s *state.State) {
@@ -269,7 +313,7 @@ func (nd *Node) handleState(s *state.State) {
             if err := s.WaitForError(); err != nil {
                 log.Printf("[node %d] protocol aborted: %v", nd.Id, err)
             }
-            // Qui salviamo il totale alla fine del protocollo
+
             nd.SaveTotalVolumeBytes()
             return
         }
