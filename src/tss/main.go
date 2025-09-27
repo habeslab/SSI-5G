@@ -40,17 +40,24 @@ type Node struct {
 
     keygenOutput *keygen.Output
     signOutput   *sign.Output
+
+    // monitoraggio dati
+    bytesSent     map[party.ID]int64
+    bytesReceived map[party.ID]int64
+    bytesMu       sync.Mutex
 }
 
 func NewNode(id int, n int, basePort int, threshold int) *Node {
     return &Node{
-        Id:        party.ID(id),
-        N:         n,
-        Threshold: party.Size(threshold),
-        BasePort:  basePort,
-        peers:     make(map[party.ID]*websocket.Conn),
-        recv:      make(chan []byte, 1024),
-        send:      make(chan *messages.Message, 1024),
+        Id:            party.ID(id),
+        N:             n,
+        Threshold:     party.Size(threshold),
+        BasePort:      basePort,
+        peers:         make(map[party.ID]*websocket.Conn),
+        recv:          make(chan []byte, 1024),
+        send:          make(chan *messages.Message, 1024),
+        bytesSent:     make(map[party.ID]int64),
+        bytesReceived: make(map[party.ID]int64),
     }
 }
 
@@ -165,6 +172,12 @@ func (nd *Node) connReadLoop(conn *websocket.Conn, remote party.ID) {
         if mt != websocket.BinaryMessage {
             continue
         }
+
+        // aggiorna contatore
+        nd.bytesMu.Lock()
+        nd.bytesReceived[remote] += int64(len(data))
+        nd.bytesMu.Unlock()
+
         nd.recv <- data
     }
 }
@@ -182,7 +195,11 @@ func (nd *Node) sendPump() {
                 if pid == msg.From {
                     continue
                 }
-                _ = conn.WriteMessage(websocket.BinaryMessage, data)
+                if err := conn.WriteMessage(websocket.BinaryMessage, data); err == nil {
+                    nd.bytesMu.Lock()
+                    nd.bytesSent[pid] += int64(len(data))
+                    nd.bytesMu.Unlock()
+                }
             }
             nd.peersMu.RUnlock()
         } else {
@@ -193,9 +210,43 @@ func (nd *Node) sendPump() {
                 log.Printf("[node %d] no connection to %d", nd.Id, msg.To)
                 continue
             }
-            _ = conn.WriteMessage(websocket.BinaryMessage, data)
+            if err := conn.WriteMessage(websocket.BinaryMessage, data); err == nil {
+                nd.bytesMu.Lock()
+                nd.bytesSent[msg.To] += int64(len(data))
+                nd.bytesMu.Unlock()
+            }
         }
     }
+}
+
+// Funzione che salva il totale dei KB in un file alla fine del protocollo
+func (nd *Node) SaveTotalVolumeBytes() {
+    nd.bytesMu.Lock()
+    defer nd.bytesMu.Unlock()
+
+    var totalBytes int64
+    for pid := range nd.peers {
+        totalBytes += nd.bytesSent[pid]
+        totalBytes += nd.bytesReceived[pid]
+    }
+
+    // totalKB := totalBytes / 1024
+
+    dir := fmt.Sprintf("./logs/N%d/volumes", nd.N)
+    if err := os.MkdirAll(dir, 0755); err != nil {
+        log.Fatalf("failed to create directory %s: %v", dir, err)
+    }
+
+    filename := fmt.Sprintf("./logs/N%d/volumes/node_%d_volume.txt", nd.N, nd.Id)
+    file, err := os.Create(filename)
+    if err != nil {
+        log.Printf("[node %d] failed to create file %s: %v", nd.Id, filename, err)
+        return
+    }
+    defer file.Close()
+
+    _, _ = file.WriteString(fmt.Sprintf("%d\n", totalBytes))
+    log.Printf("[node %d] total volume saved: %d KB", nd.Id, totalBytes)
 }
 
 func (nd *Node) handleState(s *state.State) {
@@ -218,6 +269,8 @@ func (nd *Node) handleState(s *state.State) {
             if err := s.WaitForError(); err != nil {
                 log.Printf("[node %d] protocol aborted: %v", nd.Id, err)
             }
+            // Qui salviamo il totale alla fine del protocollo
+            nd.SaveTotalVolumeBytes()
             return
         }
     }
@@ -276,7 +329,6 @@ func (nd *Node) runSign(signers []party.ID, message []byte) {
 
     nd.signOutput = signOutput
 
-    // Firma Ed25519 standard
     sigEd := signOutput.Signature.ToEd25519()
     sigB64 := base64.StdEncoding.EncodeToString(sigEd)
     log.Printf("[node %d] Signature generated (Ed25519, Base64): %s", nd.Id, sigB64)
@@ -339,13 +391,12 @@ func printGroupKey(key *eddsa.PublicKey) (string, ed25519.PublicKey, string) {
     return hexString, byteData, keyBase64
 }
 
-// Genera issuer_output.json con messaggio leggibile e firma Ed25519 standard
 func writeIssuerOutput(groupKeyB64 string, message []byte, signatureB64 string) {
     output := map[string]interface{}{
         "sign_issuer_pubkey": groupKeyB64,
         "verifiable_cred": map[string]interface{}{
-            "attr":       string(message), // messaggio leggibile
-            "issuer_sig": signatureB64,    // firma Ed25519 standard
+            "attr":       string(message),
+            "issuer_sig": signatureB64,
         },
     }
 
