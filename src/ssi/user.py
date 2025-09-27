@@ -23,9 +23,15 @@ load_dotenv()
 
 def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
          sign_verifier_pubkey, verifiable_cred, verifier_ip, verifier_port):
+    logging.info(f"Connecting to verifier at {verifier_ip}:{verifier_port}...")
+    socket = open_socket(user=True, verifier_ip=verifier_ip, verifier_port=verifier_port)
+
+    socket.send({})
+    recvd = socket.recv()
+    logging.info("Connected")
+
     # Begin time measurement
     start = time.perf_counter()
-
     # Begin RAM measurement
     pid = os.getpid()
 
@@ -39,12 +45,6 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     k0, k2, k4 = params["symm_keys"]
     th1, iv0, iv2, iv4 = params["nonces"]
 
-    logging.info(f"Connecting to verifier at {verifier_ip}:{verifier_port}...")
-    socket = open_socket(user=True, verifier_ip=verifier_ip, verifier_port=verifier_port)
-
-    socket.send({})
-    recvd = socket.recv()
-    logging.info("Connected")
     logging.info("Received th0 = %s (base64)", recvd['th0'])
     th0 = from_B64_to_bytes(recvd['th0'])
 

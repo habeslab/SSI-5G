@@ -47,6 +47,12 @@ def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
 
 def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
              sign_issuer_pubkey, verifier_port, authz_server_ip, authz_server_port):
+    logging.info(f"Opening socket on port {verifier_port}...")
+    socket = open_socket(user=False, verifier_port=verifier_port)
+
+    socket.recv()
+    logging.info("Connection from user")
+
     # Begin time measurement
     start = time.perf_counter()
 
@@ -62,12 +68,6 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
     k1, k3, k5 = params["symm_keys"]
     th0, iv1, iv3, iv5, nc = params["nonces"]
-
-    logging.info(f"Opening socket on port {verifier_port}...")
-    socket = open_socket(user=False, verifier_port=verifier_port)
-
-    socket.recv()
-    logging.info("Connection from user")
 
     th0_B64 = from_bytes_to_B64(th0)
     socket.send({"th0": th0_B64})

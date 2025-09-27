@@ -314,7 +314,7 @@ def monitor_ram(pid, role: str):
             try:
                 rss = p.memory_info().rss / 1024 ** 2  # RAM in MB
                 elapsed = time.time() - start
-                f.write(f"{elapsed:.1f},{rss:.2f}\n")
+                f.write(f"{elapsed:.1f},{rss:.3f}\n")
                 f.flush()
                 time.sleep(1)
             except psutil.NoSuchProcess:
