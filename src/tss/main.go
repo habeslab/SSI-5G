@@ -219,36 +219,6 @@ func (nd *Node) sendPump() {
     }
 }
 
-// // Funzione che salva il totale dei byte in un file alla fine del protocollo
-// func (nd *Node) SaveTotalVolumeBytes() {
-//     nd.bytesMu.Lock()
-//     defer nd.bytesMu.Unlock()
-//
-//     var totalBytes int64
-//     for pid := range nd.peers {
-//         totalBytes += nd.bytesSent[pid]
-//         totalBytes += nd.bytesReceived[pid]
-//     }
-//
-//     // totalKB := totalBytes / 1024
-//
-//     dir := fmt.Sprintf("./logs/N%d/volumes", nd.N)
-//     if err := os.MkdirAll(dir, 0755); err != nil {
-//         log.Fatalf("failed to create directory %s: %v", dir, err)
-//     }
-//
-//     filename := fmt.Sprintf("./logs/N%d/volumes/node_%d_volume.txt", nd.N, nd.Id)
-//     file, err := os.Create(filename)
-//     if err != nil {
-//         log.Printf("[node %d] failed to create file %s: %v", nd.Id, filename, err)
-//         return
-//     }
-//     defer file.Close()
-//
-//     _, _ = file.WriteString(fmt.Sprintf("%d\n", totalBytes))
-//     log.Printf("[node %d] total volume saved: %d KB", nd.Id, totalBytes)
-// }
-
 
 func (nd *Node) SaveTotalVolumeBytes() {
     nd.bytesMu.Lock()
