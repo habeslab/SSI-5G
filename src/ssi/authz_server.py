@@ -3,6 +3,7 @@ from utils import *
 import logging
 import ssl
 import argparse
+import time
 
 # Logging configuration
 os.makedirs("./logs", exist_ok=True)
@@ -81,6 +82,9 @@ def run_server():
 
 class AuthzHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # Begin time measurement
+        start = time.perf_counter()
+
         try:
             jwt_token = self.headers.get('X-Auth-Code')
             jwt_token_plain = decode_jwt_token(jwt_token, sign_verifier_pubkey)
@@ -99,6 +103,11 @@ class AuthzHandler(BaseHTTPRequestHandler):
             self.send_response(500)
             self.wfile.write(str(e).encode("utf-8"))
             self.end_headers()
+        finally:
+            # End time measurement
+            end = time.perf_counter()
+            elapsed = end - start
+            logging.info(f"Elapsed time: {elapsed}")
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ import datetime
 import logging
 import sys
 import ssl
+import time
 import requests
 from http.server import BaseHTTPRequestHandler
 from cryptography.hazmat.primitives.asymmetric import x25519, ec
@@ -44,6 +45,9 @@ def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
 
 def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
              sign_issuer_pubkey, verifier_port, authz_server_ip, authz_server_port):
+    # Begin time measurement
+    start = time.perf_counter()
+
     logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=5)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
@@ -174,6 +178,11 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
         prepare_msg(k5, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey),
                     ephemeral_pub, sign_user_pubkey, m6, k5))
     logging.info("Sent m6 (JWT token)")
+
+    # End time measurement
+    end = time.perf_counter()
+    elapsed = end - start
+    logging.info(f"Elapsed time for SSI: {elapsed}")
 
     logging.info(f"Contacting the Authorization Server at https://{authz_server_ip}:{authz_server_port}")
     contact_authz_server(jwt_token, authz_server_ip, authz_server_port)

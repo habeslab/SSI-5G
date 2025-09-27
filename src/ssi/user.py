@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
 import os
+import time
 from dotenv import load_dotenv
 
 # Configurazione del logging
@@ -20,6 +21,9 @@ load_dotenv()
 
 def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
          sign_verifier_pubkey, verifiable_cred, verifier_ip, verifier_port):
+    # Begin time measurement
+    start = time.perf_counter()
+
     logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=4)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
@@ -109,7 +113,12 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
 
     m6_encrypted = socket.recv()
     m6_plain = extract_msg(m6_encrypted, sign_pubkey, ephemeral_priv)
-    logging.info("m6 received and decrypted successfully")
+
+    # End time measurement
+    end = time.perf_counter()
+    elapsed = end - start
+
+    logging.info(f"m6 received and decrypted successfully. Elapsed time: {elapsed}")
     logging.info("m6 (JWT token) content: %s", m6_plain)
 
 
