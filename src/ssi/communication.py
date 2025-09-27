@@ -29,6 +29,10 @@ class Socket:
     def get_volume(self) -> int:
         return self.bytes_sent + self.bytes_recv
 
+    def get_volume_kb(self) -> int:
+        return (self.bytes_sent + self.bytes_recv) / 1024
+
+
 
 class VerifierSocket(Socket):
     def __init__(self, local_port: int):

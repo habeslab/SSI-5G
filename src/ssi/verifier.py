@@ -28,6 +28,9 @@ logging.basicConfig(
 def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
     auth_server_url = f"https://{authz_server_ip}:{authz_server_port}"
 
+    # Begin time measurement
+    start = time.perf_counter()
+
     try:
         r = requests.get(
             auth_server_url,
@@ -43,6 +46,11 @@ def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
     except Exception as e:
         logging.info("Authorization server unreachable (HTTP 500)")
         logging.info(e)
+    finally:
+        # End time measurement
+        end = time.perf_counter()
+        elapsed = end - start
+        logging.info(f"Elapsed time for authorization: {elapsed}")
 
 
 def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
@@ -191,7 +199,7 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     # End time measurement
     end = time.perf_counter()
     elapsed = end - start
-    logging.info(f"Elapsed time for SSI: {elapsed}")
+    logging.info(f"Elapsed time for SSI: {elapsed}. . Communication volume: {socket.get_volume_kb()} KBs")
 
     logging.info(f"Contacting the Authorization Server at https://{authz_server_ip}:{authz_server_port}")
     contact_authz_server(jwt_token, authz_server_ip, authz_server_port)

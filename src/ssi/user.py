@@ -130,7 +130,7 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     # End RAM measurement
     # monitor_proc.join()
 
-    logging.info(f"m6 received and decrypted successfully. Elapsed time: {elapsed}")
+    logging.info(f"m6 received and decrypted successfully. Elapsed time: {elapsed}. Communication volume: {socket.get_volume_kb()} KBs")
     logging.info("m6 (JWT token) content: %s", m6_plain)
 
 
