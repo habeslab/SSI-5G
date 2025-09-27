@@ -6,6 +6,8 @@ from cryptography.hazmat.primitives import hashes
 from utils import *
 import os
 import time
+import multiprocessing
+import psutil
 from dotenv import load_dotenv
 
 # Configurazione del logging
@@ -23,6 +25,13 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
          sign_verifier_pubkey, verifiable_cred, verifier_ip, verifier_port):
     # Begin time measurement
     start = time.perf_counter()
+
+    # Begin RAM measurement
+    pid = os.getpid()
+
+    # Avvia il monitor come processo separato
+    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, "user"))
+    monitor_proc.start()
 
     logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=4)
@@ -117,6 +126,9 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     # End time measurement
     end = time.perf_counter()
     elapsed = end - start
+
+    # End RAM measurement
+    # monitor_proc.join()
 
     logging.info(f"m6 received and decrypted successfully. Elapsed time: {elapsed}")
     logging.info("m6 (JWT token) content: %s", m6_plain)

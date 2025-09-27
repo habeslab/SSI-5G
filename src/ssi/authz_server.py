@@ -4,6 +4,8 @@ import logging
 import ssl
 import argparse
 import time
+import multiprocessing
+import psutil
 
 # Logging configuration
 os.makedirs("./logs", exist_ok=True)
@@ -84,6 +86,13 @@ class AuthzHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         # Begin time measurement
         start = time.perf_counter()
+
+        # Begin RAM measurement
+        pid = os.getpid()
+
+        # Avvia il monitor come processo separato
+        monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, "authz"))
+        monitor_proc.start()
 
         try:
             jwt_token = self.headers.get('X-Auth-Code')

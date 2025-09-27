@@ -7,6 +7,8 @@ import sys
 import ssl
 import time
 import requests
+import multiprocessing
+import psutil
 from http.server import BaseHTTPRequestHandler
 from cryptography.hazmat.primitives.asymmetric import x25519, ec
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -47,6 +49,13 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
              sign_issuer_pubkey, verifier_port, authz_server_ip, authz_server_port):
     # Begin time measurement
     start = time.perf_counter()
+
+    # Begin RAM measurement
+    pid = os.getpid()
+
+    # Avvia il monitor come processo separato
+    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, "verifier"))
+    monitor_proc.start()
 
     logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=5)

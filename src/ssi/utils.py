@@ -7,6 +7,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import os
 import json
+import time
+import psutil
 import communication
 import base64
 import jwt
@@ -104,12 +106,6 @@ def extract_msg(msg, sign_pubkey, ECDH_privkey):
     )
 
     return from_bytes_to_json(msg)
-
-    # if "jwt_token" not in msg_json:
-    #     return msg_json
-    #
-    # jwt_token = msg_json["jwt_token"]
-    # return decode_jwt_token(jwt_token, k)
 
 
 def wrap_key(k, k_wrap):
@@ -306,3 +302,20 @@ def create_network_slice(plmn_id, max_ping, min_throughput_mbps, uptime_percenta
         "uptimePercentage": uptime_percentage,
         "isolationLevel": isolation_level
     }
+
+
+def monitor_ram(pid, role: str):
+    p = psutil.Process(pid)
+
+    with open(f"./logs/ram_log_{role}.csv", "w") as f:
+        f.write("time_sec,ram_MB\n")
+        start = time.time()
+        while p.is_running():
+            try:
+                rss = p.memory_info().rss / 1024 ** 2  # RAM in MB
+                elapsed = time.time() - start
+                f.write(f"{elapsed:.1f},{rss:.2f}\n")
+                f.flush()
+                time.sleep(1)
+            except psutil.NoSuchProcess:
+                break
