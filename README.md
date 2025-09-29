@@ -44,7 +44,7 @@ Per garantire la piena compatibilità con il modulo `mininet`, è richiesto di e
 - `python 3.8` (versioni successive hanno problemi di compatibilità con il modulo `mininet`).
 
 
-### Istruzioni per l'uso
+### Istruzioni per l'esecuzione
 
 1. Assegnare valori significativi alle variabili d'ambiente definite nel file `.env`. La versione fornita dalla repo
 riporta valori esemplificativi.
@@ -89,6 +89,53 @@ file di log saranno salvati in `/src/mininet/logs`.
 ```
 sudo venv/bin/python3.8 ./src/mininet/net.py
 ```
+
+
+
+### File .env
+`SUB_PLMN_ID`: valore (stringa) di `plmnId` da inserire nella VC generata
+
+`SUB_MAX_PING`: valore (intero) di `maxPing` da inserire nella VC generata
+
+`SUB_MIN_THORUGHPUT_MBPS`: valore (intero) di `minThroughputMbps` da inserire nella VC generata
+
+`SUB_UPTIME_PERCENTAGE`: valore (intero) di `uptimePercentage` da inserire nella VC generata
+
+`SUB_ISOLATION_LEVEL`: valore (intero) di `isolationLevel` da inserire nella VC generata
+
+`REQ_SITE_ID`: identificativo (intero) del pool di risorse in cui si trova il network slice a cui l'UE vuole accedere
+
+`REQ_SLICE_ID` identificativo (intero) del network slice a cui l'UE vuole accedere
+
+`N_BBUs`: numero di BBU decentralizzate da inserire nella C-RAN emulata
+
+`N_RRHs`: numero di RRH da inserire nella C-RAN emulata
+
+`N_UEs`: numero di UE da inserire nella C-RAN emulata
+
+`ISSUER_BASE_PORT`: numero di porta a partire dal quale istanziare gli _n_ processi firmatari
+
+`CENTRAL_BBU_IP_1`: indirizzo IP della prima interfaccia di rete della CU
+
+`CENTRAL_BBU_IP_2`: indirizzo IP della seconda interfaccia di rete della CU
+
+`AUTHZ_SERVER_IP`: indirizzo IP del server di autorizzazione
+
+`AUTHZ_SERVER_PORT`: numero di porta del server di autorizzazione
+
+`MININET_INTERPRETER_PATH`: path dell'interprete Python da usare nel modulo `mininet` (default `/venv/bin/python3.8`)
+
+`SSI_INTERPRETER_PATH`: path dell'interprete Python da usare nel modulo `ssi` (default `/venv/bin/python3.8`)
+
+`SSI_USER_PATH`: path dello script `user.py` (default `/src/ssi/user.py`)
+
+`SSI_VERIFIER_PATH`: path dello script `verifier.py` (default `/src/ssi/verifier.py`)
+
+`SSI_AUTHZ_SERVER_PATH`: path dello script `authz_server.py` (default `/src/ssi/authz_server.py`)
+
+`VERIFIER_PORT`: porta del verifier
+
+`SSI_INPUT_FOLDER`: path della cartella contenente gli input file per gli agenti SSI (default `/src/ssi/inputs`)
 
 
 
