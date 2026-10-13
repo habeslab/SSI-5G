@@ -281,5 +281,4 @@ background).
 | Author              | Email address                  |
 |---------------------|--------------------------------|
 | Biagio Boi          | bboi@unisa.it                  |
-|---------------------|--------------------------------|
 | Francesco Giorgione | francesco.giorgione01@gmail.com|
