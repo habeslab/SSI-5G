@@ -2,8 +2,8 @@
 
 Measured with `measure_overhead.sh` against the real Open5GS + UERANSIM testbed
 (see `README.md`), on the same host used for the rest of the experiments in this repository.
-Raw logs/pcaps for this run are written to `overhead_results/` (not tracked in git — regenerate by
-re-running the script).
+Raw logs/pcaps for this run are written to, and tracked in git under, `overhead_results/` as a
+reference sample; re-run the script to regenerate them.
 
 ## Methodology
 
@@ -16,13 +16,13 @@ dominated by container-startup noise unrelated to either protocol):
   require one SQN resync round-trip) and a warm re-registration (steady state).
 - **SSI mechanism**: `Elapsed time: ...` logged by `user.py` (UE↔verifier handshake) and
   `Elapsed time for authorization: ...` logged by `verifier.py` (verifier↔authz-server call),
-  exactly the same instrumentation behind Table I/II of the conference paper.
+  exactly the same instrumentation used by the other latency experiments in this repository.
 
 Signaling volume compares the real captured NGAP/NAS registration traffic (`tcpdump` on the AMF
 container, port 38412 — wire bytes, including SCTP/IP framing) against the SSI exchange's
-application-level payload (the same byte counter behind Table I/II) — the two are not on an
-identical basis (wire vs. application-layer bytes) and are reported side by side for context
-rather than as a strict ratio.
+application-level payload (the same byte counter used by the other experiments in this
+repository) — the two are not on an identical basis (wire vs. application-layer bytes) and are
+reported side by side for context rather than as a strict ratio.
 
 ## Results (one representative run)
 
@@ -32,7 +32,7 @@ rather than as a strict ratio.
 | Native 5G registration + PDU session (warm, steady state) | 229 ms |
 | SSI handshake (UE↔verifier) | 11.9 ms |
 | Authorization (verifier↔authz-server) | 7.3 ms |
-| **SSI + authorization total** | **19.1 ms** |
+| **SSI + authorization total** | **19.2 ms** |
 | **Overhead vs. native registration** | **8.4%** |
 | Combined total (native registration, then SSI authorization) | 248 ms |
 

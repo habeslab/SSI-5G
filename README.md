@@ -70,6 +70,8 @@ python3 init_json.py
 ```
 
 7. **(Optional)** In the `/src/ssi/input/certs` directory, replace the TLS certificates provided as examples.
+These (`ca.key`, `server.key`, `client.key`, and the corresponding `.crt`/`.csr`) are test certificates/keys
+generated for this prototype only and must not be reused in any other deployment.
 
 
 8. In the `/src/mininet` directory, start the SDN controller.
@@ -87,7 +89,7 @@ sudo venv/bin/python3.8 ./src/mininet/net.py
 
 ### Experiment: impact of inter-issuer latency
 
-To evaluate the effect of network latency between the TSS consortium's issuers on VC issuance time, a dedicated Mininet topology is available (`/src/mininet/net_issuers.py`) that emulates each issuer as an independent network host, connected to a shared switch through a link with configurable latency (an "edge-delay" model: the RTT between any two issuers equals 2×L). For each combination of number of issuers (`ISSUER_N_LIST`) and latency (`ISSUER_LATENCIES_MS`) defined in the `.env` file, the script starts the FROST protocol's Go nodes on the Mininet hosts and orchestrates the key generation and signing process through `/src/tss/issuer_mininet.py`, saving the execution times in `ISSUER_LATENCY_RESULTS_CSV`.
+To evaluate the effect of network latency between the TSS consortium's issuers on VC issuance time, a dedicated Mininet topology is available (`/src/mininet/net_issuers.py`) that emulates each issuer as an independent network host, connected to a shared switch through a link with configurable latency (an "edge-delay" model: the measured RTT between any two issuers is approximately 4×L, as Mininet's TCLink applies the configured delay symmetrically on both interfaces of each host-switch link). For each combination of number of issuers (`ISSUER_N_LIST`) and latency (`ISSUER_LATENCIES_MS`) defined in the `.env` file, the script starts the FROST protocol's Go nodes on the Mininet hosts and orchestrates the key generation and signing process through `/src/tss/issuer_mininet.py`, saving the execution times in `ISSUER_LATENCY_RESULTS_CSV`.
 
 From the `/src/mininet` directory, with elevated privileges:
 ```
@@ -110,12 +112,12 @@ automatically overlays it as a horizontal reference line.
 
 ### Experiment: scalability under concurrent UEs
 
-The original Network SSI Verifier handled one UE session at a time (ZMQ REP socket): a second incoming connection
-while the first was still in progress would have corrupted the protocol state, as messages would have interleaved
-on the same socket. The verifier has therefore been extended to a ZMQ ROUTER socket
+A single ZMQ REP socket cannot serve more than one UE session at a time: a second incoming connection
+while the first is still in progress would corrupt the protocol state, as messages from both sessions would
+interleave on the same socket. The Network SSI Verifier therefore uses a ZMQ ROUTER socket
 (`communication.ConcurrentVerifierSocket`) that demultiplexes sessions by identity and handles one per thread
-(`verifier.handle_ue`); similarly, the Authorization Server now uses `ThreadingHTTPServer` with an increased
-backlog instead of the original single-threaded server. This allows measuring the system's actual scalability
+(`verifier.handle_ue`); similarly, the Authorization Server uses a `ThreadingHTTPServer` with an increased
+backlog, so that each request is handled concurrently rather than serially. This allows measuring the system's actual scalability
 (success rate, throughput, latency) as the number of concurrently authenticating UEs grows, rather than simply
 repeating a single UE's registration.
 
@@ -153,10 +155,9 @@ SSI/authz inputs, starts the verifier and authz-server containers, runs a one-sh
 relevant logs, then performs full teardown.
 
 **Validation result**: the end-to-end time of the SSI handshake alone measured on this real testbed (~11-13ms) is
-consistent with (in fact lower than) the one measured on Mininet in the conference paper (Table I, 70-210ms) —
-the additional overhead on Mininet is therefore due to the emulator's OVS/tc-netem forwarding path, not to the
-protocol itself; the numbers reported with Mininet are therefore, if anything, a conservative (pessimistic)
-estimate of real-world performance.
+substantially lower than the latencies measured for the same mechanism on Mininet (70-210ms, see the latency
+experiment above) — the additional overhead on Mininet is therefore due to the emulator's OVS/tc-netem forwarding
+path, not to the protocol itself.
 
 Building this testbed also surfaced two real bugs, previously masked by the fact that Mininet forcibly kills all
 processes at teardown instead of letting them exit naturally: (1) the RAM monitoring processes
@@ -169,7 +170,8 @@ corrupting the HTTP framing on error. Both have been fixed.
 
 In addition to the containerized testbed above (which only validates that the timings are not a Mininet
 artifact), `/docker/5gc_testbed/` documents how to validate the work on a **real, 3GPP-compliant 5G Core and RAN**
-(Open5GS + UERANSIM), directly addressing some reviewers' request for an evaluation based on a realistic 5G stack.
+(Open5GS + UERANSIM), providing an evaluation based on a realistic 5G stack rather than only Mininet's SDN
+emulation or generic containers.
 See `/docker/5gc_testbed/README.md` for the complete instructions and `example_ue_registration.md` for evidence of
 a successful end-to-end UE registration, PDU session, and data connectivity.
 
@@ -267,7 +269,15 @@ background).
 
 `SSI_INPUT_FOLDER`: path of the folder containing the input files for the SSI agents (default `/src/ssi/inputs`)
 
-`ISSUER_N_LIST`: comma-separated list of N values (number of issuers) to test in the latency experiment (default `5,10,20`)
+`ISSUER_N_LIST`: comma-separated list of N values (number of issuers) to test in the latency experiment (default `5,10,15,20,25,30`)
+
+`SCALABILITY_UE_LIST`: comma-separated list of M values (number of concurrent UEs) to test in the scalability experiment (default `1,5,10,20,50`)
+
+`SCALABILITY_RESULTS_CSV`: path of the CSV file where the results of the scalability experiment are saved (default `./logs/scalability_results.csv`)
+
+`SCALABILITY_WAIT_TIMEOUT`: timeout in seconds to wait for each UE's registration to complete in the scalability experiment (default `60`)
+
+`SCALABILITY_N_REPEATS`: number of repeats per value of M in the scalability experiment (default `1`)
 
 `ISSUER_LATENCIES_MS`: comma-separated list of link latencies (in ms) to test between issuers in the dedicated Mininet topology (default `0,5,20,50,100`)
 

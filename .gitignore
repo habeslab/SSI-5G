@@ -30,6 +30,7 @@ src/tss/node_testbed
 *.tex
 *.env
 *.env*
+!.env.docker.example
 *.pdf
 *.cls
 *.bib

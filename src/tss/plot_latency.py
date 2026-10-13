@@ -4,10 +4,9 @@ Plots the VC issuance execution time as a function of the number of
 issuers N, with one line per inter-issuer link latency L, from the CSV
 produced by issuer_mininet.py / net_issuers.py.
 
-This is the journal-extension counterpart of Fig. 4 in the conference
-paper (which only reports time vs. N at L=0, i.e. same-host issuers):
-here each latency value gets its own curve, so that both the effect of
-N and of network latency (and their interaction) are visible.
+Unlike a plot of time vs. N at L=0 only (i.e. same-host issuers), here
+each latency value gets its own curve, so that both the effect of N
+and of network latency (and their interaction) are visible.
 """
 import argparse
 import csv

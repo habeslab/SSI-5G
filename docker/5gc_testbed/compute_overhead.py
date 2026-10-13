@@ -76,7 +76,7 @@ if t_ssi is not None and t_authz is not None:
 # --network container:X sometimes misses the brief exchange), so the
 # SSI-side byte count instead comes from the application-level counter
 # already used throughout this project (communication.Socket, the same
-# one behind Table I/II of the conference paper) rather than a second,
+# one used by the other latency experiments) rather than a second,
 # flakier measurement technique. The native side uses the real AMF pcap
 # (SCTP/NGAP), so the two numbers are not on an identical basis (wire
 # bytes incl. SCTP/IP framing vs. JSON application payload) - reported
@@ -86,6 +86,6 @@ import os
 vol_kb = elapsed_from_log(f"{out_dir}/user_overhead0.log", r"Communication volume: ([0-9.eE+-]+) KBs")
 amf_pcap = f"{out_dir}/amf_registration.pcap"
 if vol_kb is not None:
-    print(f"SSI application-level payload (UE<->verifier, from Table I/II byte counter): {vol_kb*1024:.0f} bytes")
+    print(f"SSI application-level payload (UE<->verifier, from application-level byte counter): {vol_kb*1024:.0f} bytes")
 if os.path.isfile(amf_pcap):
     print(f"Native NGAP/NAS registration procedure (AMF pcap, SCTP:38412, wire bytes): {os.path.getsize(amf_pcap)} bytes")

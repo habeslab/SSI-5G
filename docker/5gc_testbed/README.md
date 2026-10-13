@@ -2,8 +2,7 @@
 
 This is a standards-compliant, 3GPP-conformant 5G Standalone (SA) Core network and
 gNB/UE simulator, used to validate the C-RAN/authentication work in this repository against a
-**real 5G stack** rather than only Mininet's SDN emulation or generic containers, as requested by
-one of the reviewers.
+**real 5G stack** rather than only Mininet's SDN emulation or generic containers.
 
 It relies on two established open-source projects (not vendored into this repo — clone them
 separately):

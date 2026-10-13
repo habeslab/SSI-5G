@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Recreates the three conference-paper figures -- execution time, RAM
-usage, and network data exchanged, all vs. number of issuers N -- with a
-shaded +/-1 standard deviation band across repeated runs (see
-sweep_issuer_metrics.py), instead of the original single-run-per-N
-curves.
+Plots execution time, RAM usage, and network data exchanged, all vs.
+number of issuers N, with a shaded +/-1 standard deviation band across
+repeated runs (see sweep_issuer_metrics.py), instead of a single-run-
+per-N curve.
 """
 import argparse
 import csv
