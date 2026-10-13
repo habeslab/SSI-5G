@@ -3,10 +3,10 @@ import jcs
 import argparse
 import datetime
 import logging
-import sys
 import ssl
 import time
 import requests
+import threading
 import multiprocessing
 import psutil
 from http.server import BaseHTTPRequestHandler
@@ -53,25 +53,26 @@ def contact_authz_server(jwt_token, authz_server_ip, authz_server_port):
         logging.info(f"Elapsed time for authorization: {elapsed}")
 
 
-def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
-             sign_issuer_pubkey, verifier_port, authz_server_ip, authz_server_port):
-    logging.info(f"Opening socket on port {verifier_port}...")
-    socket = open_socket(user=False, verifier_port=verifier_port)
+def handle_ue(socket, ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
+              sign_issuer_pubkey, authz_server_ip, authz_server_port, session_id):
+    """
+    Runs one UE's authentication+authorization exchange to completion.
+    Called in its own thread per accepted session by the server loop
+    below, so that the verifier can serve multiple UEs concurrently: a
+    protocol failure here must only abort THIS session (hence `return`
+    instead of `sys.exit`, which would otherwise kill every other UE
+    session sharing the same verifier process).
+    """
+    def info(msg, *fmt_args):
+        logging.info(f"[UE session {session_id}] " + msg, *fmt_args)
 
     socket.recv()
-    logging.info("Connection from user")
+    info("Connection from user")
 
     # Begin time measurement
     start = time.perf_counter()
 
-    # Begin RAM measurement
-    pid = os.getpid()
-
-    # Avvia il monitor come processo separato
-    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, "verifier"))
-    monitor_proc.start()
-
-    logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
+    info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
     params = generate_params(n_x25519_keys=1, n_symm_keys=3, n_nonces=5)
     ephemeral_priv, ephemeral_pub = params["x25519_privkeys"][0], params["x25519_pubkeys"][0]
     k1, k3, k5 = params["symm_keys"]
@@ -79,11 +80,11 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
 
     th0_B64 = from_bytes_to_B64(th0)
     socket.send({"th0": th0_B64})
-    logging.info("Sent th0 = %s (base64)", th0_B64)
+    info("Sent th0 = %s (base64)", th0_B64)
 
     m1_encrypted = socket.recv()
     m1_plain = extract_msg(m1_encrypted, sign_pubkey, ECDH_privkey)
-    logging.info("m1 received and decrypted successfully")
+    info("m1 received and decrypted successfully")
 
     th0_res = m1_plain["th0"]
     th1 = m1_plain["th1"]
@@ -91,16 +92,16 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     ECDH_user_pubkey_signature = m1_plain["DIDDoc_signature"]
 
     if th0_res != from_bytes_to_B64(th0):
-        logging.info("Nonce not valid. Protocol aborted")
-        sys.exit(1)
+        info("Nonce not valid. Protocol aborted")
+        return
 
     if verify_signature(from_B64_to_bytes(ECDH_user_pubkey_signature),
                             from_B64_to_bytes(ECDH_user_pubkey),
                             sign_user_pubkey) is not None:
-        logging.info("Signature not valid. Protocol aborted")
-        sys.exit(1)
+        info("Signature not valid. Protocol aborted")
+        return
 
-    logging.info("Nonce and signature successfully verified")
+    info("Nonce and signature successfully verified")
 
     DIDDoc_signature = sign(from_pubkey_to_bytes(ephemeral_pub), sign_privkey)
 
@@ -113,11 +114,11 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     socket.send(
         prepare_msg(k1, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey),
                     ephemeral_pub, sign_user_pubkey, m2, iv1))
-    logging.info("Sent m2")
+    info("Sent m2")
 
     m3_encrypted = socket.recv()
     m3_plain = extract_msg(m3_encrypted, sign_pubkey, ephemeral_priv)
-    logging.info("m3 received and decrypted successfully")
+    info("m3 received and decrypted successfully")
 
     m4 = {
         "attr": ["plmnId", "maxPing", "minThroughputMbps", "uptimePercentage", "isolationLevel", "expirationDate"],
@@ -128,11 +129,11 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     socket.send(
         prepare_msg(k3, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey),
                     ephemeral_pub, sign_user_pubkey, m4, iv3))
-    logging.info("Sent m4")
+    info("Sent m4")
 
     m5_encrypted = socket.recv()
     m5_plain = extract_msg(m5_encrypted, sign_pubkey, ephemeral_priv)
-    logging.info("m5 received and decrypted successfully")
+    info("m5 received and decrypted successfully")
 
     verifiable_pres = m5_plain["verifiable_pres"]
 
@@ -140,35 +141,35 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     if verify_signature(from_B64_to_bytes(verifiable_pres_signature),
                             from_json_to_bytes(verifiable_pres),
                             sign_user_pubkey) is not None:
-        logging.info("VP signature not valid. Protocol aborted")
-        sys.exit(1)
+        info("VP signature not valid. Protocol aborted")
+        return
 
     verifiable_cred = verifiable_pres["verifiable_cred"]
     attr_res = verifiable_cred["attr"]
     issuer_sig = verifiable_cred["issuer_sig"]
 
-    logging.info("VC: %s", verifiable_cred)
+    info("VC: %s", verifiable_cred)
 
     if verify_signature(from_B64_to_bytes(issuer_sig),
                             from_bytes_to_B64(jcs.canonicalize(attr_res)).encode("UTF-8"),
                             sign_issuer_pubkey) is not None:
-        logging.info("VC signature not valid. Protocol aborted")
-        sys.exit(1)
+        info("VC signature not valid. Protocol aborted")
+        return
 
     nc_res = from_B64_to_bytes(m5_plain["verifiable_pres"]["m4"]["nc"])
 
     if nc != nc_res:
-        logging.info("Nonce not valid. Protocol aborted")
-        sys.exit(1)
+        info("Nonce not valid. Protocol aborted")
+        return
 
     if set(attr_res.keys()) != set(m4["attr"]):
-        logging.info("VC attributes not valid. Protocol aborted")
-        sys.exit(1)
+        info("VC attributes not valid. Protocol aborted")
+        return
 
     if (datetime.datetime.strptime(attr_res["expirationDate"], "%Y-%m-%d %H:%M:%S") <
             datetime.datetime.utcnow()):
-        logging.info("VC expired. Protocol aborted")
-        sys.exit(1)
+        info("VC expired. Protocol aborted")
+        return
 
     verifiable_pres_bytes = from_json_to_bytes(verifiable_pres)
     verifiable_pres_bytes_hash = get_hash(verifiable_pres_bytes)
@@ -194,14 +195,14 @@ def verifier(ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
     socket.send(
         prepare_msg(k5, ephemeral_priv, from_B64_to_x25519_pubkey(ECDH_user_pubkey),
                     ephemeral_pub, sign_user_pubkey, m6, k5))
-    logging.info("Sent m6 (JWT token)")
+    info("Sent m6 (JWT token)")
 
     # End time measurement
     end = time.perf_counter()
     elapsed = end - start
-    logging.info(f"Elapsed time for SSI: {elapsed}. . Communication volume: {socket.get_volume_kb()} KBs")
+    info(f"Elapsed time for SSI: {elapsed}. . Communication volume: {socket.get_volume_kb()} KBs")
 
-    logging.info(f"Contacting the Authorization Server at https://{authz_server_ip}:{authz_server_port}")
+    info(f"Contacting the Authorization Server at https://{authz_server_ip}:{authz_server_port}")
     contact_authz_server(jwt_token, authz_server_ip, authz_server_port)
 
 
@@ -227,5 +228,22 @@ if __name__ == '__main__':
     sign_user_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_user_pubkey"])
     sign_issuer_pubkey = from_B64_to_ed25519_pubkey(verifier_input["sign_issuer_pubkey"])
 
-    verifier(ECDH_privkey, sign_privkey, sign_pubkey,
-             sign_user_pubkey, sign_issuer_pubkey, args.verifier_port, args.authz_server_ip, args.authz_server_port)
+    logging.info(f"Opening concurrent verifier socket on port {args.verifier_port}...")
+    router = open_socket(user=False, verifier_port=args.verifier_port)
+
+    # One process-wide RAM monitor: since all UE sessions are threads
+    # inside this single process, a per-session monitor would just poll
+    # the same PID redundantly under concurrent load.
+    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(os.getpid(), "verifier"), daemon=True)
+    monitor_proc.start()
+
+    session_id = 0
+    while True:
+        session = router.accept()
+        session_id += 1
+        threading.Thread(
+            target=handle_ue,
+            args=(session, ECDH_privkey, sign_privkey, sign_pubkey, sign_user_pubkey,
+                  sign_issuer_pubkey, args.authz_server_ip, args.authz_server_port, session_id),
+            daemon=True,
+        ).start()

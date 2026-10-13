@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 import subprocess
 import time
-import base64
 import json
 import requests
 import signal
-import datetime
 import os
 import csv
-import jcs
 import argparse
 from dotenv import load_dotenv
+from vc_message import build_message_b64
 
 
 parser = argparse.ArgumentParser(description="Script for VC issue")
@@ -33,17 +31,7 @@ CMD_PATH = "./main.go"
 
 SIGNERS = list(range(1, TH + 2))  # primi TH+1 nodi
 
-EXPIRATION_DATE = datetime.datetime.utcnow() + datetime.timedelta(days=180)
-MESSAGE_DICT = {
-    "plmnId": os.getenv("SUB_PLMN_ID"),
-    "maxPing": os.getenv("SUB_MAX_PING"),
-    "minThroughputMbps": os.getenv("SUB_MIN_THROUGHPUT_MBPS"),
-    "uptimePercentage": os.getenv("SUB_UPTIME_PERCENTAGE"),
-    "isolationLevel": os.getenv("SUB_ISOLATION_LEVEL"),
-    "expirationDate":  EXPIRATION_DATE.strftime("%Y-%m-%d %H:%M:%S")
-}
-MESSAGE_JSON = jcs.canonicalize(MESSAGE_DICT)
-MESSAGE_B64 = base64.b64encode(MESSAGE_JSON).decode("utf-8")
+MESSAGE_B64 = build_message_b64()
 
 
 def save_results_csv(n_signers, time_value):
@@ -109,7 +97,7 @@ for i, proc in enumerate(processes, start=1):
 # ===============================
 # Helper: wait for keygen
 # ===============================
-def wait_keygen(base, nodes, timeout=60):
+def wait_keygen(base, nodes, timeout=180):
     deadline = time.time() + timeout
     while time.time() < deadline:
         all_done = True
@@ -130,7 +118,7 @@ def wait_keygen(base, nodes, timeout=60):
     return False
 
 print("\nWaiting for all signers to finish keygen...")
-if not wait_keygen(BASE, SIGNERS, timeout=60):
+if not wait_keygen(BASE, SIGNERS, timeout=180):
     print("ERROR: Keygen not completed in time, aborting.")
     for proc in processes:
         proc.kill()

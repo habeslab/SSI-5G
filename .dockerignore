@@ -1,0 +1,7 @@
+.git
+venv/
+**/__pycache__/
+**/*.pyc
+**/logs/
+src/tss/node
+src/tss/node_multisig

@@ -1,0 +1,18 @@
+# Convenience wrapper around `docker run` for the SSI-5G container.
+# Mininet needs to create net namespaces/veth pairs and drive Open
+# vSwitch, hence the elevated privileges below (see README.md).
+services:
+  ssi-5g:
+    build: .
+    image: ssi-5g:latest
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - ./.env.docker:/opt/ssi-5g/.env:ro
+    env_file:
+      - .env.docker
+    stdin_open: true
+    tty: true

@@ -34,19 +34,21 @@ def start_authz_server(authz_server):
     print(f"*** Authorization server started, logged in logs folder")
     
     
-def start_ssi_user(ue, c_bbu_ip):
-    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_USER_PATH} --verifier_ip {c_bbu_ip} --verifier_port {VERIFIER_PORT} '
-           f'--input_folder {SSI_INPUT_FOLDER} &')
+def start_ssi_user(ue, c_bbu_ip, ue_id=0, verifier_port=None):
+    verifier_port = verifier_port or VERIFIER_PORT
+    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_USER_PATH} --verifier_ip {c_bbu_ip} --verifier_port {verifier_port} '
+           f'--input_folder {SSI_INPUT_FOLDER} --ue_id {ue_id} &')
     ue.cmd(cmd)
     print(f"*** SSI user started, logged in logs folder")
 
-    
-    
-def start_ssi_verifier(c_bbu):
-    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_VERIFIER_PATH} --verifier_port {VERIFIER_PORT} --input_folder '
+
+
+def start_ssi_verifier(c_bbu, verifier_port=None):
+    verifier_port = verifier_port or VERIFIER_PORT
+    cmd = (f'{SSI_INTERPRETER_PATH} {SSI_VERIFIER_PATH} --verifier_port {verifier_port} --input_folder '
            f'{SSI_INPUT_FOLDER} --authz_server_ip {AUTHZ_SERVER_IP} --authz_server_port {AUTHZ_SERVER_PORT} &')
     c_bbu.cmd(cmd)
-    print(f"*** SSI verifier started, logged in logs folder")
+    print(f"*** SSI verifier started on port {verifier_port}, logged in logs folder")
 
 
 def create_cloud_ran():

@@ -1,1 +1,1 @@
-subjectAltName = IP:10.0.1.2
+subjectAltName = IP:10.0.1.2,DNS:authz,DNS:localhost,IP:127.0.0.1

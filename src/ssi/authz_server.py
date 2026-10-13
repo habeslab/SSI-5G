@@ -1,9 +1,10 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from utils import *
 import logging
 import ssl
 import argparse
 import time
+import threading
 import multiprocessing
 import psutil
 
@@ -66,9 +67,23 @@ def is_allowed(jwt_token):
     return True
 
 
+class ConcurrentAuthzServer(ThreadingHTTPServer):
+    # socketserver.TCPServer defaults request_queue_size to 5: under
+    # concurrent UE load, dozens of near-simultaneous connections would
+    # otherwise queue (or get refused) at the OS accept backlog before a
+    # handler thread ever sees them, making the server look far slower
+    # than the actual per-request JWT-verification cost.
+    request_queue_size = 256
+    daemon_threads = True
+
+
 def run_server():
     server_address = (authz_server_ip, authz_server_port)
-    httpd = HTTPServer(server_address, AuthzHandler)
+    # ThreadingHTTPServer: the plain HTTPServer handles one request at a
+    # time, which would serialize authorization checks under concurrent
+    # UE load and become an artificial bottleneck unrelated to the actual
+    # cost of verifying a JWT.
+    httpd = ConcurrentAuthzServer(server_address, AuthzHandler)
 
     # Configure SSL
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -79,25 +94,35 @@ def run_server():
     context.load_verify_locations(f"{args.input_folder}/certs/ca.crt")  # CA certificate
 
     httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+
+    # One process-wide RAM monitor: request handling now happens on
+    # threads within this single process (ThreadingHTTPServer), so a
+    # per-request monitor would just poll the same PID redundantly under
+    # concurrent load.
+    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(os.getpid(), "authz"), daemon=True)
+    monitor_proc.start()
+
     httpd.serve_forever()
+
+
+_request_counter = 0
+_request_counter_lock = threading.Lock()
 
 
 class AuthzHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        global _request_counter
+        with _request_counter_lock:
+            _request_counter += 1
+            request_id = _request_counter
+
         # Begin time measurement
         start = time.perf_counter()
-
-        # Begin RAM measurement
-        pid = os.getpid()
-
-        # Avvia il monitor come processo separato
-        monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, "authz"))
-        monitor_proc.start()
 
         try:
             jwt_token = self.headers.get('X-Auth-Code')
             jwt_token_plain = decode_jwt_token(jwt_token, sign_verifier_pubkey)
-            logging.info("Received JWT token:")
+            logging.info(f"[request {request_id}] Received JWT token:")
             logging.info(jwt_token_plain)
 
             if jwt_token_plain is not None and is_allowed(jwt_token_plain):
@@ -110,13 +135,13 @@ class AuthzHandler(BaseHTTPRequestHandler):
                 self.wfile.write(b'UNAUTHORIZED')
         except Exception as e:
             self.send_response(500)
-            self.wfile.write(str(e).encode("utf-8"))
             self.end_headers()
+            self.wfile.write(str(e).encode("utf-8"))
         finally:
             # End time measurement
             end = time.perf_counter()
             elapsed = end - start
-            logging.info(f"Elapsed time: {elapsed}")
+            logging.info(f"[request {request_id}] Elapsed time: {elapsed}")
 
 
 if __name__ == '__main__':

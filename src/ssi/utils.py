@@ -57,7 +57,7 @@ def open_socket(user: bool, verifier_ip=None, verifier_port=None):
 
     if user:
         return communication.UserSocket(verifier_ip, verifier_port)
-    return communication.VerifierSocket(verifier_port)
+    return communication.ConcurrentVerifierSocket(verifier_port)
 
 
 def prepare_msg(k, epheremal_priv, ECDH_counterpart_pubkey, ephemeral_pub, sign_counterpart_pubkey, payload, iv):

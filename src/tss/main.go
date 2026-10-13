@@ -9,6 +9,7 @@ import (
     "net/http"
     "os"
     "strconv"
+    "strings"
     "sync"
     "time"
     "encoding/csv"
@@ -31,6 +32,7 @@ type Node struct {
     N         int
     Threshold party.Size
     BasePort  int
+    PeerIPs   map[party.ID]string
 
     peers   map[party.ID]*websocket.Conn
     peersMu sync.RWMutex
@@ -47,12 +49,13 @@ type Node struct {
     bytesMu       sync.Mutex
 }
 
-func NewNode(id int, n int, basePort int, threshold int) *Node {
+func NewNode(id int, n int, basePort int, threshold int, peerIPs map[party.ID]string) *Node {
     return &Node{
         Id:            party.ID(id),
         N:             n,
         Threshold:     party.Size(threshold),
         BasePort:      basePort,
+        PeerIPs:       peerIPs,
         peers:         make(map[party.ID]*websocket.Conn),
         recv:          make(chan []byte, 1024),
         send:          make(chan *messages.Message, 1024),
@@ -79,7 +82,12 @@ func (nd *Node) Start() {
     mux.HandleFunc("/admin/start-sign", nd.adminStartSignHandler)
     mux.HandleFunc("/status", nd.statusHandler)
 
-    addr := fmt.Sprintf("127.0.0.1:%d", nd.BasePort+int(nd.Id)-1)
+    // Bind on all interfaces rather than nd.PeerIPs[nd.Id]: a container's
+    // own hostname often resolves to a loopback entry in /etc/hosts (not
+    // its bridge-network IP), which would make it unreachable from other
+    // containers if used as the listen address. Peers are still dialed
+    // by their own PeerIPs entry, which resolves correctly for them.
+    addr := fmt.Sprintf("0.0.0.0:%d", nd.BasePort+int(nd.Id)-1)
     srv := &http.Server{Addr: addr, Handler: mux}
 
     go func() {
@@ -134,7 +142,7 @@ func (nd *Node) wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (nd *Node) dialPeer(remote party.ID) {
-    url := fmt.Sprintf("ws://127.0.0.1:%d/ws?id=%d", nd.BasePort+int(remote)-1, int(nd.Id))
+    url := fmt.Sprintf("ws://%s:%d/ws?id=%d", nd.PeerIPs[remote], nd.BasePort+int(remote)-1, int(nd.Id))
     for {
         conn, _, err := websocket.DefaultDialer.Dial(url, nil)
         if err != nil {
@@ -224,11 +232,12 @@ func (nd *Node) SaveTotalVolumeBytes() {
     nd.bytesMu.Lock()
     defer nd.bytesMu.Unlock()
 
-    var totalBytes int64
+    var sentBytes, receivedBytes int64
     for pid := range nd.peers {
-        totalBytes += nd.bytesSent[pid]
-        totalBytes += nd.bytesReceived[pid]
+        sentBytes += nd.bytesSent[pid]
+        receivedBytes += nd.bytesReceived[pid]
     }
+    totalBytes := sentBytes + receivedBytes
 
     dir := fmt.Sprintf("./logs/N%d/volumes", nd.N)
     if err := os.MkdirAll(dir, 0755); err != nil {
@@ -246,7 +255,7 @@ func (nd *Node) SaveTotalVolumeBytes() {
     writer := csv.NewWriter(file)
     defer writer.Flush()
 
-    if err := writer.Write([]string{"n_signers", "volume_bytes"}); err != nil {
+    if err := writer.Write([]string{"n_signers", "volume_bytes", "outbound_bytes", "inbound_bytes"}); err != nil {
         log.Printf("[node %d] failed to write CSV header: %v", nd.Id, err)
         return
     }
@@ -254,13 +263,15 @@ func (nd *Node) SaveTotalVolumeBytes() {
     record := []string{
         fmt.Sprintf("%d", nd.Id),
         fmt.Sprintf("%d", totalBytes),
+        fmt.Sprintf("%d", sentBytes),
+        fmt.Sprintf("%d", receivedBytes),
     }
     if err := writer.Write(record); err != nil {
         log.Printf("[node %d] failed to write CSV record: %v", nd.Id, err)
         return
     }
 
-    log.Printf("[node %d] total volume saved: %d bytes", nd.Id, totalBytes)
+    log.Printf("[node %d] total volume saved: %d bytes (out=%d, in=%d)", nd.Id, totalBytes, sentBytes, receivedBytes)
 }
 
 func (nd *Node) handleState(s *state.State) {
@@ -430,14 +441,41 @@ func writeIssuerOutput(groupKeyB64 string, message []byte, signatureB64 string) 
     }
 }
 
+// parsePeerIPs parses a comma-separated "id=ip" list (e.g. "1=10.0.0.1,2=10.0.0.2").
+// Any node id not present in the list defaults to 127.0.0.1, preserving the
+// original single-host behaviour when the flag is omitted.
+func parsePeerIPs(raw string, n int) map[party.ID]string {
+    peerIPs := make(map[party.ID]string, n)
+    for i := 1; i <= n; i++ {
+        peerIPs[party.ID(i)] = "127.0.0.1"
+    }
+    if raw == "" {
+        return peerIPs
+    }
+    for _, pair := range strings.Split(raw, ",") {
+        kv := strings.SplitN(pair, "=", 2)
+        if len(kv) != 2 {
+            continue
+        }
+        id, err := strconv.Atoi(strings.TrimSpace(kv[0]))
+        if err != nil {
+            continue
+        }
+        peerIPs[party.ID(id)] = strings.TrimSpace(kv[1])
+    }
+    return peerIPs
+}
+
 func main() {
     id := flag.Int("id", 1, "node id (1-based)")
     n := flag.Int("n", 3, "total number of nodes")
     basePort := flag.Int("base-port", 8000, "base port: node i listens on base-port + (i-1)")
     threshold := flag.Int("threshold", 2, "threshold size")
+    peers := flag.String("peers", "", "comma-separated id=ip list, e.g. 1=10.0.0.1,2=10.0.0.2 (default: 127.0.0.1 for all)")
     flag.Parse()
 
-    node := NewNode(*id, *n, *basePort, *threshold)
+    peerIPs := parsePeerIPs(*peers, *n)
+    node := NewNode(*id, *n, *basePort, *threshold, peerIPs)
     node.Start()
 
     select {}

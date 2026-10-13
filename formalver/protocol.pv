@@ -1,0 +1,178 @@
+free c: channel.
+
+type tag.
+type scalar.
+type point.
+type key.
+type nonce.
+type skey.
+type pkey.
+
+set preciseActions = true.
+
+const tag_M1, tag_M2, tag_M3, tag_M4, tag_M5, tag_M6 : tag [data].
+const tag_m1, tag_m2, tag_m3, tag_m4, tag_m5, tag_m6 : tag [data].
+const tag_suG, tag_svG : tag [data].
+
+const G: point.
+fun mul(scalar, point): point.
+equation forall x: scalar, y: scalar; mul(x, mul(y, G)) = mul(y, mul(x, G)).
+
+fun pt2key(point): key.
+fun F(nonce, key): key.
+
+fun pk(skey): pkey.
+fun aenc(bitstring, pkey): bitstring.
+reduc forall m: bitstring, k: skey; adec(aenc(m, pk(k)), k) = m.
+
+fun senc(bitstring, key): bitstring.
+reduc forall m: bitstring, k: key; sdec(senc(m, k), k) = m.
+
+fun sign(bitstring, skey): bitstring.
+reduc forall msg: bitstring, sk: skey; check(msg, sign(msg, sk), pk(sk)) = true.
+reduc forall m: bitstring, k: skey; getmess(sign(m, k)) = m.
+
+fun DIDDoc(point): bitstring [data].
+
+free URI: bitstring.
+free ATTR: bitstring [private].
+free resource: bitstring [private].
+
+event UserSendsVP(nonce, bitstring, bitstring, bitstring, bitstring, bitstring).
+event VerifierAccepts(nonce, bitstring, bitstring, bitstring, bitstring, bitstring).
+event VerifierSendsResource(nonce, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
+event UserGetsResource(nonce, bitstring, bitstring, bitstring, bitstring, bitstring, bitstring).
+
+query attacker(resource).
+query attacker(ATTR).
+
+query n: nonce, m1: bitstring, m2: bitstring, m3: bitstring, m4: bitstring, m5: bitstring;
+  inj-event(VerifierAccepts(n, m1, m2, m3, m4, m5)) ==> inj-event(UserSendsVP(n, m1, m2, m3, m4, m5)).
+
+query n: nonce, m1: bitstring, m2: bitstring, m3: bitstring, m4: bitstring, m5: bitstring, m6: bitstring;
+  inj-event(UserGetsResource(n, m1, m2, m3, m4, m5, m6)) ==> inj-event(VerifierSendsResource(n, m1, m2, m3, m4, m5, m6)).
+
+let User(skU: skey, vG: point, pkV: pkey, VC: bitstring) =
+  let pkU = pk(skU) in
+  new su: scalar;
+  new th1: nonce;
+  new iv0: nonce; new iv2: nonce; new iv4: nonce;
+  let suG = mul(su, G) in
+
+  in(c, th0p: nonce);
+
+  let m1 = (th0p, th1, sign(DIDDoc(suG), skU)) in
+  let M1 = (aenc((suG, tag_suG), pkV),
+            senc((tag_m1, m1), F(iv0, pt2key(mul(su, vG)))),
+            iv0) in
+  out(c, (tag_M1, M1));
+
+  in(c, (=tag_M2, M2: bitstring));
+  let (e2: bitstring, e3: bitstring, iv1: nonce) = M2 in
+  let (svG: point, =tag_svG) = adec(e2, skU) in
+  let (=tag_m2, m2: bitstring) = sdec(e3, F(iv1, pt2key(mul(su, svG)))) in
+  let (th1p: nonce, s2: bitstring) = m2 in
+  if check(DIDDoc(svG), s2, pkV) = true then
+  if th1p = th1 then
+
+  let M3 = (aenc((suG, tag_suG), pkV),
+            senc((tag_m3, URI), F(iv2, pt2key(mul(su, svG)))),
+            iv2) in
+  out(c, (tag_M3, M3));
+
+  in(c, (=tag_M4, M4: bitstring));
+  let (f2: bitstring, f3: bitstring, iv3: nonce) = M4 in
+  let (svG2: point, =tag_svG) = adec(f2, skU) in
+  let (=tag_m4, m4: bitstring) = sdec(f3, F(iv3, pt2key(mul(su, svG2)))) in
+  let (ATTRr: bitstring, URIr: bitstring, ncr: nonce) = m4 in
+  if svG2 = svG then
+  if URIr = URI then
+
+  let VP = (m4, VC) in
+  let m5 = (VP, sign(VP, skU)) in
+  let M5 = (aenc((suG, tag_suG), pkV),
+            senc((tag_m5, m5), F(iv4, pt2key(mul(su, svG)))),
+            iv4) in
+  event UserSendsVP(th0p, M1, M2, M3, M4, M5);
+  out(c, (tag_M5, M5));
+
+  in(c, (=tag_M6, M6: bitstring));
+  let (h2: bitstring, h3: bitstring, iv5: nonce) = M6 in
+  let (svG3: point, =tag_svG) = adec(h2, skU) in
+  let (=tag_m6, m6: bitstring) = sdec(h3, F(iv5, pt2key(mul(su, svG3)))) in
+  if svG3 = svG then
+  if m6 = resource then
+  event UserGetsResource(ncr, M1, M2, M3, M4, M5, M6).
+
+let Verifier(v: scalar, skV: skey, pkU: pkey, pkI: pkey) =
+  let pkV = pk(skV) in
+  new th0: nonce;
+  new nc: nonce;
+  new iv1: nonce; new iv3: nonce; new iv5: nonce;
+  let svG = mul(v, G) in
+
+  out(c, th0);
+
+  in(c, (=tag_M1, M1: bitstring));
+  let (e2: bitstring, e3: bitstring, iv0: nonce) = M1 in
+  let (suG: point, =tag_suG) = adec(e2, skV) in
+  let (=tag_m1, m1: bitstring) = sdec(e3, F(iv0, pt2key(mul(v, suG)))) in
+  let (th0p: nonce, th1: nonce, s1: bitstring) = m1 in
+  if check(DIDDoc(suG), s1, pkU) = true then
+  if th0p = th0 then
+
+  let m2 = (th1, sign(DIDDoc(svG), skV)) in
+  let M2 = (aenc((svG, tag_svG), pkU),
+            senc((tag_m2, m2), F(iv1, pt2key(mul(v, suG)))),
+            iv1) in
+  out(c, (tag_M2, M2));
+
+  in(c, (=tag_M3, M3: bitstring));
+  let (f2: bitstring, f3: bitstring, iv2: nonce) = M3 in
+  let (suG2: point, =tag_suG) = adec(f2, skV) in
+  let (=tag_m3, URIr: bitstring) = sdec(f3, F(iv2, pt2key(mul(v, suG2)))) in
+  if suG2 = suG then
+  if URIr = URI then
+
+  let m4 = (ATTR, URIr, nc) in
+  let M4 = (aenc((svG, tag_svG), pkU),
+            senc((tag_m4, m4), F(iv3, pt2key(mul(v, suG)))),
+            iv3) in
+  out(c, (tag_M4, M4));
+
+  in(c, (=tag_M5, M5: bitstring));
+  let (g2: bitstring, g3: bitstring, iv4: nonce) = M5 in
+  let (suG3: point, =tag_suG) = adec(g2, skV) in
+  let (=tag_m5, m5: bitstring) = sdec(g3, F(iv4, pt2key(mul(v, suG3)))) in
+  if suG3 = suG then
+  let (VP: bitstring, sVP: bitstring) = m5 in
+  let (m4x: bitstring, VCx: bitstring) = VP in
+  let (ATTRp: bitstring, URIp: bitstring, ncp: nonce) = m4x in
+  let (=ATTRp, sVC: bitstring) = VCx in
+  if check(VP, sVP, pkU) = true then
+  if check(ATTRp, sVC, pkI) = true then
+  if (ATTRp, ncp) = (ATTR, nc) then
+  event VerifierAccepts(th0, M1, M2, M3, M4, M5);
+
+  let M6 = (aenc((svG, tag_svG), pkU),
+            senc((tag_m6, resource), F(iv5, pt2key(mul(v, suG)))),
+            iv5) in
+  event VerifierSendsResource(nc, M1, M2, M3, M4, M5, M6);
+  out(c, (tag_M6, M6)).
+
+process
+  new skU: skey;
+  new skV: skey;
+  new skI: skey;
+  new v: scalar;
+  let pkU = pk(skU) in
+  let pkV = pk(skV) in
+  let pkI = pk(skI) in
+  let vG = mul(v, G) in
+  let VC = (ATTR, sign(ATTR, skI)) in
+  out(c, (pkU, pkV, pkI, vG));
+  (
+      !Verifier(v, skV, pkU, pkI)
+    | !User(skU, vG, pkV, VC)
+    | (phase 1; out(c, (skU, skV)))          (* <-- liberazione chiavi *)
+  )

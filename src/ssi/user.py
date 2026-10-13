@@ -1,6 +1,7 @@
 import json
 import argparse
 import logging
+import sys
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import hashes
 from utils import *
@@ -10,10 +11,22 @@ import multiprocessing
 import psutil
 from dotenv import load_dotenv
 
+parser = argparse.ArgumentParser(description="User client for verifier connection")
+parser.add_argument("--verifier_ip", type=str, required=True,
+                    help="IP address of the verifier")
+parser.add_argument("--verifier_port", type=int, required=True,
+                    help="Port of the verifier")
+parser.add_argument("--input_folder", type=str, required=True,
+                    help="Path of the folder containing JSON input file")
+parser.add_argument("--ue_id", type=str, default="0",
+                    help="Identifier of this UE, used to keep log/RAM files of concurrently "
+                         "running UEs (e.g. in net_scalability.py) from clobbering each other")
+args = parser.parse_args()
+
 # Configurazione del logging
 os.makedirs("./logs", exist_ok=True)
 logging.basicConfig(
-    filename='./logs/user.log',
+    filename=f'./logs/user_{args.ue_id}.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     filemode='w'
@@ -36,7 +49,7 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
     pid = os.getpid()
 
     # Avvia il monitor come processo separato
-    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, "user"))
+    monitor_proc = multiprocessing.Process(target=monitor_ram, args=(pid, f"user_{args.ue_id}"), daemon=True)
     monitor_proc.start()
 
     logging.info("Generating X25519 keys, ED25519 keys, symmetric keys and nonces...")
@@ -137,15 +150,6 @@ def user(ECDH_privkey, sign_privkey, sign_pubkey, ECDH_verifier_pubkey,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="User client for verifier connection")
-    parser.add_argument("--verifier_ip", type=str, required=True,
-                        help="IP address of the verifier")
-    parser.add_argument("--verifier_port", type=int, required=True,
-                        help="Port of the verifier")
-    parser.add_argument("--input_folder", type=str, required=True,
-                        help="Path of the folder containing JSON input file")
-    args = parser.parse_args()
-
     with open(f"{args.input_folder}/user_input.json", "r", encoding="utf-8") as file:
         user_input = json.load(file)
 

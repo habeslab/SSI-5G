@@ -11,9 +11,25 @@ __pycache__/
 .vscode/
 .idea/
 
+# Docker testbed build artifact (see docker/run_testbed.sh)
+src/tss/node_testbed
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+
 # Input and log files
 *.json
 *.log
 *.csv
 *.png
 *.txt
+*.tex
+*.env
+*.env*
+*.pdf
+*.cls
+*.bib
