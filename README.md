@@ -1,316 +1,285 @@
 # SSI-5G
-Questa è la repo del progetto sviluppato, sotto la supervisione del prof. Christiancarmine Esposito e del dott. 
-Biagio Boi, durante la mia attività di Tesi Magistrale presso l'Università degli Studi di Salerno.
+This is the repository of the manuscript named _Decentralizing Slice-Specific Authentication and Authorization in Cloud RAN via Threshold-Issued Credentials_.
 
 
-## Struttura
-La repo fornisce l'implementazione di una Cloud RAN emulata, in cui i dispositivi utente
-(_user equipment_, UE) si autenticano presso il core della rete tramite un meccanismo basato su **Self-Sovereign 
-Identity (SSI).** La successiva autorizzazione, eseguita per il tramite di un server di autorizzazione (AS), consente
-agli UE di ottenere l'accesso a un network slice. Al fine di evitare che le credenziali verificabili (VC) siano emesse
-da un _Single Point of Failure and Vulnerability_, abbiamo modificato il paradigma SSI classico, facendo in modo che sia
-un consorzio di multipli issuer fidati, mediante un protocollo di **threshold signature**, a firmare e rilasciare le VC.
+## Structure
+The repo provides the implementation of an emulated Cloud RAN, in which user equipment (UE) devices authenticate to the core network through a mechanism based on **Self-Sovereign Identity (SSI)**. The subsequent authorization, carried out through an authorization server (AS), allows UEs to obtain access to a network slice. In order to avoid verifiable credentials (VCs) being issued by a _Single Point of Failure and Vulnerability_, we modified the classic SSI paradigm so that a consortium of multiple trusted issuers, through a **threshold signature** protocol, signs and issues the VCs.
 
 
-Lo schema delle VC utilizzate è rapperesentato nella tabella seguente.
+The VC schema used is represented in the table below.
 
 | expirationDate | isolationLevel | maxPing | minThroughputMbps | plmnId | uptimePercentage | 
 |----------------|----------------|---------|-------------------|--------|------------------|
 |                |                |         |                   |        |                  |    
 
-Il campo `expirationDate` indica il periodo di validità della credenziale. Il campo `plmnId` identifica l'operatore
-(_Mobile Network Operator_, MNO) con cui l'UE ha sottoscritto un contratto di abbonamento. I restanti campi 
-individuano gli attributi di Quality of Service (QoS) garantiti all'UE dall'abbonamento sottoscritto.
+The `expirationDate` field indicates the validity period of the credential. The `plmnId` field identifies the operator (_Mobile Network Operator_, MNO) with which the UE has a subscription contract. The remaining fields identify the Quality of Service (QoS) attributes guaranteed to the UE by the subscribed plan.
 
-Il progetto si compone dei seguenti moduli.
+The project is composed of the following modules.
 
-- `/src/mininet`: emula la C-RAN nella quale è stato implementato il meccanismo di autenticazione e autorizzazione.
-- `/src/ssi`: fornisce il meccanismo SSI di scambio e verifica delle credenziali.
-- `/src/tss`: si occupa dell'emissione delle VC, firmate tramite un protocollo di threshold signature.
+- `/src/mininet`: emulates the C-RAN in which the authentication and authorization mechanism has been implemented.
+- `/src/ssi`: provides the SSI mechanism for exchanging and verifying credentials.
+- `/src/tss`: handles the issuance of VCs, signed through a threshold signature protocol.
 
-A sua volta, il modullo `ssi` fornisce i seguenti agenti.
+In turn, the `ssi` module provides the following agents.
 
-- `/src/ssi/user.py`: implementa l'UE (_holder_ del paradigma SSI), che fornisce la propria VC per richiedere l'accesso a una risorsa di rete.
-- `/src/ssi/verifier.py`: implementa la _Central Unit_ (CU, i.e. _verifier_ del paradigma SSI), che identifica l'UE sulla base della credenziale da questi fornita.
-- `/src/ssi/authz_server.py`: implementa il server che, completata l'autenticazione, si occupa di autorizzare l'accesso allre risorse richieste.
+- `/src/ssi/user.py`: implements the UE (_holder_ of the SSI paradigm), which provides its own VC to request access to a network resource.
+- `/src/ssi/verifier.py`: implements the _Central Unit_ (CU, i.e. _verifier_ of the SSI paradigm), which identifies the UE based on the credential it provides.
+- `/src/ssi/authz_server.py`: implements the server that, once authentication is complete, handles authorizing access to the requested resources.
 
 
 
 ## Setup
 
-È disponibile un'immagine Docker che contiene già tutti i prerequisiti (vedi
-[Esecuzione in Docker](#esecuzione-in-docker)); in alternativa, il progetto può essere eseguito
-direttamente sull'host seguendo le istruzioni sottostanti.
+A Docker image is available that already contains all the prerequisites (see [Running in Docker](#running-in-docker) - *RECOMMENDED*); alternatively, the project can be run directly on the host by following the instructions below *NOT RECOMMENDED*.
 
-Per garantire la piena compatibilità con il modulo `mininet`, è richiesto di eseguire il progetto su una macchina 
-**Linux nativa**. Inoltre, sono necessari i seguenti prerequisiti:
+To ensure full compatibility with the `mininet` module, the project must be run on a **native Linux** machine.
+Additionally, the following prerequisites are required:
 
 - `go`
-- `python 3.8` (versioni successive hanno problemi di compatibilità con il modulo `mininet`).
+- `python 3.8` (later versions have compatibility issues with the `mininet` module).
 
 
-### Istruzioni per l'esecuzione
+### Instructions for running the project
 
-1. Assegnare valori significativi alle variabili d'ambiente definite nel file `.env`. La versione fornita dalla repo
-riporta valori esemplificativi.
+1. Assign meaningful values to the environment variables defined in the `.env` file. The version provided by the
+repo shows example values.
 
-2. Nella root directory del progetto, creare un ambiente virtuale.
+2. From the project root directory, create a virtual environment.
 ```
 python3.8 -m venv venv
 ```
 
-3. Attivare l'ambiente virtuale creato.
+3. Activate the virtual environment just created.
 ```
 source venv/bin/activate
 ```
 
-4. Dalla root directory del progetto, installare le dipendenze.
+4. From the project root directory, install the dependencies.
 ```
 pip install -r requirements.txt
 ```
 
-5. Nella directory `/src/tss`, eseguire l'emissione della credenziale verificabile.
+5. In the `/src/tss` directory, run the issuance of the verifiable credential.
 ```
 python3 issuer.py
 ```
 
-6. Nella directory `/src/ssi`, costruire gli input file degli agenti SSI e dell'AS.
+6. In the `/src/ssi` directory, build the input files for the SSI agents and the AS.
 ```
 python3 init_json.py
 ```
 
-7. **(Opzionale)** Nella directory `/src/ssi/input/certs`, sostituire i certificati TLS
-forniti come esempio.
+7. **(Optional)** In the `/src/ssi/input/certs` directory, replace the TLS certificates provided as examples.
 
 
-8. Nella directory `/src/mininet`, avviare il controller SDN.
+8. In the `/src/mininet` directory, start the SDN controller.
 ```
 ./start-ryu.sh
 ```
 
-9. In un nuovo terminale, dalla root directory del progetto, avviare (con privilegi elevati) la C-RAN. 
-In automatico, saranno eseguiti i processi di autenticazione ed autorizzazione, i cui
-file di log saranno salvati in `/src/mininet/logs`.
+9. In a new terminal, from the project root directory, start (with elevated privileges) the C-RAN.
+The authentication and authorization processes will run automatically, with log files saved in
+`/src/mininet/logs`.
 ```
 sudo venv/bin/python3.8 ./src/mininet/net.py
 ```
 
 
-### Esperimento: impatto della latenza tra issuer
+### Experiment: impact of inter-issuer latency
 
-Per valutare l'effetto della latenza di rete tra gli issuer del consorzio TSS sul tempo di
-emissione della VC, è disponibile una topologia Mininet dedicata (`/src/mininet/net_issuers.py`)
-che emula ciascun issuer come host di rete indipendente, collegato a uno switch condiviso
-tramite un link a latenza configurabile (modello "edge-delay": la RTT tra due issuer qualsiasi
-è pari a 2×L). Per ogni combinazione di numero di issuer (`ISSUER_N_LIST`) e latenza
-(`ISSUER_LATENCIES_MS`) definita nel file `.env`, lo script avvia i nodi Go del protocollo FROST
-sugli host Mininet e orchestra il processo di key generation e firma tramite
-`/src/tss/issuer_mininet.py`, salvando i tempi di esecuzione in `ISSUER_LATENCY_RESULTS_CSV`.
+To evaluate the effect of network latency between the TSS consortium's issuers on VC issuance time, a dedicated Mininet topology is available (`/src/mininet/net_issuers.py`) that emulates each issuer as an independent network host, connected to a shared switch through a link with configurable latency (an "edge-delay" model: the RTT between any two issuers equals 2×L). For each combination of number of issuers (`ISSUER_N_LIST`) and latency (`ISSUER_LATENCIES_MS`) defined in the `.env` file, the script starts the FROST protocol's Go nodes on the Mininet hosts and orchestrates the key generation and signing process through `/src/tss/issuer_mininet.py`, saving the execution times in `ISSUER_LATENCY_RESULTS_CSV`.
 
-Dalla directory `/src/mininet`, con privilegi elevati:
+From the `/src/mininet` directory, with elevated privileges:
 ```
 sudo venv/bin/python3.8 ./net_issuers.py
 ```
 
 
-### Esperimento: baseline single-issuer
+### Experiment: single-issuer baseline
 
-Per quantificare l'overhead introdotto dalla firma a soglia rispetto al modello tradizionale
-(un singolo issuer, single point of failure), è disponibile `/src/tss/issuer_baseline.py`, che
-genera una singola coppia di chiavi Ed25519 e firma direttamente la VC (nessun protocollo
-threshold, nessuna comunicazione peer-to-peer). Il messaggio firmato è costruito con la stessa
-funzione (`vc_message.py`) usata dallo schema a soglia, per un confronto sullo stesso payload.
-Poiché una singola firma Ed25519 richiede tempi dell'ordine delle decine di microsecondi (sotto
-la risoluzione/rumore del timer di wall-clock), il tempo riportato è una media su più ripetizioni
-(default 1000, configurabile con `--runs`).
+To quantify the overhead introduced by threshold signing compared to the traditional model (a single issuer, single point of failure), `/src/tss/issuer_baseline.py` is available, which generates a single Ed25519 key pair and signs the VC directly (no threshold protocol, no peer-to-peer communication). The signed message is built with the same function (`vc_message.py`) used by the threshold scheme, for a comparison on the same payload. Since a single Ed25519 signature takes on the order of tens of microseconds (below the resolution/noise of the wall-clock timer), the reported time is an average over multiple repetitions (default 1000, configurable with `--runs`).
 
-Dalla directory `/src/tss`:
+From the `/src/tss` directory:
 ```
 python3 issuer_baseline.py
 ```
-Il risultato viene accodato in `./logs/baseline_results.csv` con lo stesso schema
-(`n_signers,latency_ms,time`) del file prodotto dall'esperimento di latenza, cosicché
-`plot_latency.py --baseline_csv logs/baseline_results.csv` lo sovrapponga automaticamente
-come linea di riferimento orizzontale.
+The result is appended to `./logs/baseline_results.csv` with the same schema (`n_signers,latency_ms,time`) as
+the file produced by the latency experiment, so that `plot_latency.py --baseline_csv logs/baseline_results.csv`
+automatically overlays it as a horizontal reference line.
 
 
-### Esperimento: scalabilità su UE concorrenti
+### Experiment: scalability under concurrent UEs
 
-Il Network SSI Verifier originale gestiva una sessione UE alla volta (socket ZMQ REP): una
-seconda connessione in arrivo mentre la prima era ancora in corso ne avrebbe corrotto lo stato
-protocollare, poiché i messaggi si sarebbero interfogliati sullo stesso socket. Il verifier è
-stato quindi esteso a un socket ZMQ ROUTER (`communication.ConcurrentVerifierSocket`) che
-demultiplessa le sessioni per identità e ne gestisce una per thread (`verifier.handle_ue`);
-analogamente l'Authorization Server usa ora `ThreadingHTTPServer` con backlog aumentato invece
-del server single-threaded originale. Questo consente di misurare la scalabilità reale del
-sistema (tasso di successo, throughput, latenza) al crescere del numero di UE che si autenticano
-concorrentemente, anziché limitarsi a ripetere la registrazione di un singolo UE.
+The original Network SSI Verifier handled one UE session at a time (ZMQ REP socket): a second incoming connection
+while the first was still in progress would have corrupted the protocol state, as messages would have interleaved
+on the same socket. The verifier has therefore been extended to a ZMQ ROUTER socket
+(`communication.ConcurrentVerifierSocket`) that demultiplexes sessions by identity and handles one per thread
+(`verifier.handle_ue`); similarly, the Authorization Server now uses `ThreadingHTTPServer` with an increased
+backlog instead of the original single-threaded server. This allows measuring the system's actual scalability
+(success rate, throughput, latency) as the number of concurrently authenticating UEs grows, rather than simply
+repeating a single UE's registration.
 
-Lo script `/src/mininet/net_scalability.py` avvia M UE Mininet concorrenti contro un'unica coppia
-verifier/authz-server, per ciascun valore di M in `SCALABILITY_UE_LIST`, salvando in
-`SCALABILITY_RESULTS_CSV` tasso di successo, throughput e latenza media/p95.
+The `/src/mininet/net_scalability.py` script starts M concurrent Mininet UEs against a single verifier/authz-server
+pair, for each value of M in `SCALABILITY_UE_LIST`, saving the success rate, throughput, and average/p95 latency
+in `SCALABILITY_RESULTS_CSV`.
 
-Dalla directory `/src/mininet`, con privilegi elevati (richiede il controller SDN già avviato):
+From the `/src/mininet` directory, with elevated privileges (requires the SDN controller already running):
 ```
 sudo venv/bin/python3.8 ./net_scalability.py
 python3 plot_scalability.py --csv logs/scalability_results.csv
 ```
 
-**Nota metodologica**: tutti gli M UE condividono la stessa coppia di credenziali (`user_input.json`
-è generato una sola volta da `init_json.py`), quindi l'esperimento misura la capacità del sistema
-di servire sessioni concorrenti con credenziali valide, non l'eterogeneità di una popolazione di
-identità distinte.
+**Methodological note**: all M UEs share the same credential pair (`user_input.json` is generated only once by
+`init_json.py`), so the experiment measures the system's ability to serve concurrent sessions with valid
+credentials, not the heterogeneity of a population of distinct identities.
 
 
-### Esperimento: testbed reale (non emulato)
+### Experiment: real testbed (non-emulated)
 
-Gli esperimenti precedenti girano su Mininet, un framework di emulazione SDN: per verificare che
-i risultati non siano un artefatto dell'emulazione (link virtuali, forwarding via Open vSwitch),
-`/docker/run_testbed.sh` dispiega ogni componente (consorzio issuer, Network SSI Verifier,
-Authorization Server, UE) come **container Docker separati su una rete bridge reale**, con
-namespace di rete indipendenti veri e forwarding via veth/bridge/iptables del kernel Linux,
-anziché tramite l'emulatore Mininet. È lo stesso genere di deployment containerizzato con cui le
-funzioni di rete di una Cloud RAN verrebbero effettivamente eseguite in produzione.
+The previous experiments run on Mininet, an SDN emulation framework: to verify that the results are not an
+artifact of the emulation (virtual links, forwarding via Open vSwitch), `/docker/run_testbed.sh` deploys each
+component (issuer consortium, Network SSI Verifier, Authorization Server, UE) as **separate Docker containers on
+a real bridge network**, with real independent network namespaces and forwarding via the Linux kernel's
+veth/bridge/iptables, instead of through the Mininet emulator. This is the same kind of containerized deployment
+with which a Cloud RAN's network functions would actually run in production.
 
 ```
 ./docker/run_testbed.sh [N_ISSUER]   # default 3
 ```
 
-Lo script compila il nodo TSS (in `node_testbed`, per non toccare il binario `node` tracciato in
-git), avvia N container issuer, orchestra keygen e firma a soglia (`issuer_docker.py`), genera gli
-input SSI/authz, avvia i container verifier e authz-server, esegue un UE one-shot contro di essi e
-stampa i log rilevanti, effettuando poi il teardown completo.
+The script builds the TSS node (into `node_testbed`, so as not to touch the `node` binary tracked in git), starts
+N issuer containers, orchestrates threshold key generation and signing (`issuer_docker.py`), generates the
+SSI/authz inputs, starts the verifier and authz-server containers, runs a one-shot UE against them and prints the
+relevant logs, then performs full teardown.
 
-**Risultato di validazione**: il tempo end-to-end del solo handshake SSI misurato su questo
-testbed reale (~11-13ms) è coerente con (anzi inferiore a) quello misurato su Mininet nel paper di
-conferenza (Tabella I, 70-210ms) — l'overhead aggiuntivo di Mininet è quindi dovuto al percorso di
-forwarding OVS/tc-netem dell'emulatore, non al protocollo stesso; i numeri riportati con Mininet
-risultano quindi una stima se mai conservativa (pessimistica) delle prestazioni reali.
+**Validation result**: the end-to-end time of the SSI handshake alone measured on this real testbed (~11-13ms) is
+consistent with (in fact lower than) the one measured on Mininet in the conference paper (Table I, 70-210ms) —
+the additional overhead on Mininet is therefore due to the emulator's OVS/tc-netem forwarding path, not to the
+protocol itself; the numbers reported with Mininet are therefore, if anything, a conservative (pessimistic)
+estimate of real-world performance.
 
-Costruire questo testbed ha inoltre fatto emergere due bug reali, mascherati fino ad ora dal fatto
-che Mininet termina forzatamente tutti i processi al teardown invece di lasciarli uscire
-naturalmente: (1) i processi di monitoraggio RAM (`multiprocessing.Process`) non erano demoni,
-causando un deadlock quando un processo doveva terminare autonomamente; (2) nel gestore
-d'eccezione dell'authorization server il corpo della risposta HTTP veniva scritto prima di
-`end_headers()`, corrompendo il framing HTTP in caso di errore. Entrambi sono stati corretti.
-
-
-### Esperimento: testbed 5G SA reale (Open5GS + UERANSIM)
-
-Oltre al testbed containerizzato sopra (che valida solo che i tempi non siano un artefatto di
-Mininet), `/docker/5gc_testbed/` documenta come validare il lavoro su un **5G Core e RAN reali,
-conformi 3GPP** (Open5GS + UERANSIM), rispondendo direttamente alla richiesta di alcuni revisori
-di una valutazione basata su uno stack 5G realistico. Vedi `/docker/5gc_testbed/README.md` per le
-istruzioni complete e `example_ue_registration.md` per l'evidenza di una registrazione UE, sessione
-PDU e connettività dati riuscite end-to-end.
-
-Il 5G Core esegue la propria autenticazione primaria nativa (5G-AKA); il meccanismo SSI di questo
-progetto non è stato integrato a livello di AMF (richiederebbe modifiche a codice Go/C di terze
-parti che non manteniamo), ma è posizionato concettualmente come livello di autorizzazione
-aggiuntivo per l'accesso allo slice, complementare all'autenticazione 5G-AKA anziché sostitutivo.
-
-`/docker/5gc_testbed/measure_overhead.sh` misura l'overhead introdotto dal meccanismo SSI rispetto
-alla sola registrazione 5G-AKA nativa (latenza, volume di segnalazione, footprint RAM), usando i
-timestamp di protocollo (non il tempo delle invocazioni Docker, dominato da rumore di startup dei
-container). Risultato riassunto in `overhead_report.md`: l'autorizzazione SSI aggiunge ~19ms,
-circa l'8% in più rispetto ai ~230ms della registrazione 5G nativa.
+Building this testbed also surfaced two real bugs, previously masked by the fact that Mininet forcibly kills all
+processes at teardown instead of letting them exit naturally: (1) the RAM monitoring processes
+(`multiprocessing.Process`) were not daemons, causing a deadlock when a process had to terminate on its own; (2)
+in the authorization server's exception handler, the HTTP response body was written before `end_headers()`,
+corrupting the HTTP framing on error. Both have been fixed.
 
 
-## Esecuzione in Docker
+### Experiment: real 5G SA testbed (Open5GS + UERANSIM)
 
-L'immagine Docker fornita (`Dockerfile`) incapsula tutti i prerequisiti (Python 3.8, Go, Mininet,
-Open vSwitch) e viene usata per eseguire sia la C-RAN completa (`net.py`) sia l'esperimento di
-latenza tra issuer (`net_issuers.py`).
+In addition to the containerized testbed above (which only validates that the timings are not a Mininet
+artifact), `/docker/5gc_testbed/` documents how to validate the work on a **real, 3GPP-compliant 5G Core and RAN**
+(Open5GS + UERANSIM), directly addressing some reviewers' request for an evaluation based on a realistic 5G stack.
+See `/docker/5gc_testbed/README.md` for the complete instructions and `example_ue_registration.md` for evidence of
+a successful end-to-end UE registration, PDU session, and data connectivity.
 
-**Prerequisiti sull'host** (non eliminabili containerizzando, perché Mininet crea namespace di
-rete e usa Open vSwitch, che dipendono dal kernel condiviso con l'host):
-- i moduli kernel `openvswitch` e `sch_netem` caricati (`sudo modprobe openvswitch sch_netem`);
-- il container deve girare con `--privileged` (o quantomeno `--cap-add=NET_ADMIN --cap-add=SYS_ADMIN`).
+The 5G Core runs its own native primary authentication (5G-AKA); this project's SSI mechanism has not been
+integrated at the AMF level (which would require modifying third-party Go/C code that we do not maintain), but is
+positioned conceptually as an additional authorization layer for slice access, complementary to 5G-AKA
+authentication rather than a replacement for it.
+
+`/docker/5gc_testbed/measure_overhead.sh` measures the overhead introduced by the SSI mechanism relative to
+native 5G-AKA registration alone (latency, signaling volume, RAM footprint), using protocol-level timestamps (not
+the timing of Docker invocations, which is dominated by container startup noise). Result summarized in
+`overhead_report.md`: SSI authorization adds ~19ms, about 8% more than the ~230ms of native 5G registration.
+
+
+## Running in Docker
+
+The provided Docker image (`Dockerfile`) encapsulates all the prerequisites (Python 3.8, Go, Mininet, Open
+vSwitch) and is used to run both the full C-RAN (`net.py`) and the inter-issuer latency experiment
+(`net_issuers.py`).
+
+**Host prerequisites** (cannot be removed by containerizing, because Mininet creates network namespaces and uses
+Open vSwitch, which depend on the kernel shared with the host):
+- the `openvswitch` and `sch_netem` kernel modules loaded (`sudo modprobe openvswitch sch_netem`);
+- the container must run with `--privileged` (or at least `--cap-add=NET_ADMIN --cap-add=SYS_ADMIN`).
 
 ### Build
 ```
 docker build -t ssi-5g .
 ```
 
-### Esecuzione interattiva
+### Interactive run
 ```
-cp .env.docker.example .env.docker   # personalizzare i valori se necessario
+cp .env.docker.example .env.docker   # customize values if needed
 docker run --rm -it --privileged --cap-add=NET_ADMIN --cap-add=SYS_ADMIN \
   -v /lib/modules:/lib/modules:ro \
   --env-file .env.docker \
   ssi-5g
 ```
-In alternativa, con `docker compose up -d && docker compose exec ssi-5g bash` (richiede prima
+Alternatively, with `docker compose up -d && docker compose exec ssi-5g bash` (requires first running
 `cp .env.docker.example .env.docker`).
 
-All'interno del container il progetto si trova in `/opt/ssi-5g` con il venv già pronto e attivo
-(`source venv/bin/activate` è eseguito automaticamente dall'entrypoint); da lì si eseguono gli
-stessi comandi descritti nelle sezioni precedenti (es. `python3.8 src/tss/issuer.py --n_signers N`,
-`python3.8 src/mininet/net_issuers.py`, `python3.8 src/mininet/net.py` dopo aver avviato
-`start-ryu.sh` in background).
+Inside the container the project is located at `/opt/ssi-5g` with the venv already set up and active
+(`source venv/bin/activate` is run automatically by the entrypoint); from there you run the same commands
+described in the previous sections (e.g. `python3.8 src/tss/issuer.py --n_signers N`,
+`python3.8 src/mininet/net_issuers.py`, `python3.8 src/mininet/net.py` after starting `start-ryu.sh` in the
+background).
 
-**Nota**: il file `.env` tracciato nel repository contiene path assoluti pensati per
-un'esecuzione sull'host (es. `/home/.../venv/bin/python3.8`); `.env.docker.example` fornisce
-gli equivalenti path in-container (`/opt/ssi-5g/...`) e va usato al posto di `.env` quando si
-lavora in Docker.
+**Note**: the `.env` file tracked in the repository contains absolute paths intended for running on the host
+(e.g. `/home/.../venv/bin/python3.8`); `.env.docker.example` provides the equivalent in-container paths
+(`/opt/ssi-5g/...`) and should be used instead of `.env` when working in Docker.
 
 
-### File .env
-`SUB_PLMN_ID`: valore (stringa) di `plmnId` da inserire nella VC generata
+### .env file
+`SUB_PLMN_ID`: value (string) of `plmnId` to insert into the generated VC
 
-`SUB_MAX_PING`: valore (intero) di `maxPing` da inserire nella VC generata
+`SUB_MAX_PING`: value (integer) of `maxPing` to insert into the generated VC
 
-`SUB_MIN_THORUGHPUT_MBPS`: valore (intero) di `minThroughputMbps` da inserire nella VC generata
+`SUB_MIN_THORUGHPUT_MBPS`: value (integer) of `minThroughputMbps` to insert into the generated VC
 
-`SUB_UPTIME_PERCENTAGE`: valore (intero) di `uptimePercentage` da inserire nella VC generata
+`SUB_UPTIME_PERCENTAGE`: value (integer) of `uptimePercentage` to insert into the generated VC
 
-`SUB_ISOLATION_LEVEL`: valore (intero) di `isolationLevel` da inserire nella VC generata
+`SUB_ISOLATION_LEVEL`: value (integer) of `isolationLevel` to insert into the generated VC
 
-`REQ_SITE_ID`: identificativo (intero) del pool di risorse in cui si trova il network slice a cui l'UE vuole accedere
+`REQ_SITE_ID`: identifier (integer) of the resource pool where the network slice the UE wants to access is located
 
-`REQ_SLICE_ID` identificativo (intero) del network slice a cui l'UE vuole accedere
+`REQ_SLICE_ID`: identifier (integer) of the network slice the UE wants to access
 
-`N_BBUs`: numero di BBU decentralizzate da inserire nella C-RAN emulata
+`N_BBUs`: number of decentralized BBUs to include in the emulated C-RAN
 
-`N_RRHs`: numero di RRH da inserire nella C-RAN emulata
+`N_RRHs`: number of RRHs to include in the emulated C-RAN
 
-`N_UEs`: numero di UE da inserire nella C-RAN emulata
+`N_UEs`: number of UEs to include in the emulated C-RAN
 
-`ISSUER_BASE_PORT`: numero di porta a partire dal quale istanziare gli _n_ processi firmatari
+`ISSUER_BASE_PORT`: port number from which to instantiate the _n_ signer processes
 
-`CENTRAL_BBU_IP_1`: indirizzo IP della prima interfaccia di rete della CU
+`CENTRAL_BBU_IP_1`: IP address of the CU's first network interface
 
-`CENTRAL_BBU_IP_2`: indirizzo IP della seconda interfaccia di rete della CU
+`CENTRAL_BBU_IP_2`: IP address of the CU's second network interface
 
-`AUTHZ_SERVER_IP`: indirizzo IP del server di autorizzazione
+`AUTHZ_SERVER_IP`: IP address of the authorization server
 
-`AUTHZ_SERVER_PORT`: numero di porta del server di autorizzazione
+`AUTHZ_SERVER_PORT`: port number of the authorization server
 
-`MININET_INTERPRETER_PATH`: path dell'interprete Python da usare nel modulo `mininet` (default `/venv/bin/python3.8`)
+`MININET_INTERPRETER_PATH`: path of the Python interpreter to use in the `mininet` module (default `/venv/bin/python3.8`)
 
-`SSI_INTERPRETER_PATH`: path dell'interprete Python da usare nel modulo `ssi` (default `/venv/bin/python3.8`)
+`SSI_INTERPRETER_PATH`: path of the Python interpreter to use in the `ssi` module (default `/venv/bin/python3.8`)
 
-`SSI_USER_PATH`: path dello script `user.py` (default `/src/ssi/user.py`)
+`SSI_USER_PATH`: path of the `user.py` script (default `/src/ssi/user.py`)
 
-`SSI_VERIFIER_PATH`: path dello script `verifier.py` (default `/src/ssi/verifier.py`)
+`SSI_VERIFIER_PATH`: path of the `verifier.py` script (default `/src/ssi/verifier.py`)
 
-`SSI_AUTHZ_SERVER_PATH`: path dello script `authz_server.py` (default `/src/ssi/authz_server.py`)
+`SSI_AUTHZ_SERVER_PATH`: path of the `authz_server.py` script (default `/src/ssi/authz_server.py`)
 
-`VERIFIER_PORT`: porta del verifier
+`VERIFIER_PORT`: verifier port
 
-`SSI_INPUT_FOLDER`: path della cartella contenente gli input file per gli agenti SSI (default `/src/ssi/inputs`)
+`SSI_INPUT_FOLDER`: path of the folder containing the input files for the SSI agents (default `/src/ssi/inputs`)
 
-`ISSUER_N_LIST`: lista (separata da virgole) dei valori di N (numero di issuer) da testare nell'esperimento di latenza (default `5,10,20`)
+`ISSUER_N_LIST`: comma-separated list of N values (number of issuers) to test in the latency experiment (default `5,10,20`)
 
-`ISSUER_LATENCIES_MS`: lista (separata da virgole) delle latenze di link (in ms) da testare tra gli issuer nella topologia Mininet dedicata (default `0,5,20,50,100`)
+`ISSUER_LATENCIES_MS`: comma-separated list of link latencies (in ms) to test between issuers in the dedicated Mininet topology (default `0,5,20,50,100`)
 
-`ISSUER_LATENCY_RESULTS_CSV`: path del file CSV in cui salvare i risultati dell'esperimento di latenza tra issuer (default `../tss/logs/latency_results.csv`)
-
+`ISSUER_LATENCY_RESULTS_CSV`: path of the CSV file where the results of the inter-issuer latency experiment are saved (default `../tss/logs/latency_results.csv`)
 
 
 
-## Autori e contatti
 
-| Autore              | Indirizzo email                 |
-|---------------------|---------------------------------|
-| Francesco Giorgione | francesco.giorgione01@gmail.com |
+## Authors and contacts
+
+| Author              | Email address                  |
+|---------------------|--------------------------------|
+| Biagio Boi          | bboi@unisa.it                  |
+|---------------------|--------------------------------|
+| Francesco Giorgione | francesco.giorgione01@gmail.com|
